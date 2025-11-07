@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartScheduler.Infrastructu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartScheduler.API", "SmartScheduler.API\SmartScheduler.API.csproj", "{C48DD570-FE38-4E4D-B930-7FA642BA0699}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartScheduler.API.Tests", "SmartScheduler.API.Tests\SmartScheduler.API.Tests.csproj", "{D7902CA8-F620-4882-B31E-24F2858C9DAF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{C48DD570-FE38-4E4D-B930-7FA642BA0699}.Release|x64.Build.0 = Release|Any CPU
 		{C48DD570-FE38-4E4D-B930-7FA642BA0699}.Release|x86.ActiveCfg = Release|Any CPU
 		{C48DD570-FE38-4E4D-B930-7FA642BA0699}.Release|x86.Build.0 = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|x64.Build.0 = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Debug|x86.Build.0 = Debug|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|x64.ActiveCfg = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|x64.Build.0 = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|x86.ActiveCfg = Release|Any CPU
+		{D7902CA8-F620-4882-B31E-24F2858C9DAF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
