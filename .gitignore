@@ -11,6 +11,8 @@ pnpm-lock.yaml
 .env.local
 .env.*.local
 .env.production.local
+.aws/
+.secrets/
 
 # Build outputs
 dist/
@@ -89,3 +91,15 @@ build/
 
 # Ignore .ignore folder (backup/archive)
 .ignore/
+
+# .NET & Visual Studio
+bin/
+obj/
+.vs/
+.vscode/
+*.csproj.user
+*.user
+*.userprefs
+*.suo
+appsettings.Production.json
+.vscode/settings.json
