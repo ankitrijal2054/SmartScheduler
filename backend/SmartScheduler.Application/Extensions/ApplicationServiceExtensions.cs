@@ -1,0 +1,25 @@
+using Microsoft.Extensions.DependencyInjection;
+using FluentValidation;
+
+namespace SmartScheduler.Application.Extensions;
+
+/// <summary>
+/// Extension methods for registering Application layer services in the DI container.
+/// </summary>
+public static class ApplicationServiceExtensions
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        // Register MediatR for CQRS pattern
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly));
+
+        // Register FluentValidation validators
+        services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
+
+        // Future: Register AutoMapper for DTOs
+        // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);
+
+        return services;
+    }
+}
+
