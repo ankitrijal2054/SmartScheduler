@@ -7,6 +7,7 @@ using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
 using SmartScheduler.Infrastructure.Persistence;
+using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 
 namespace SmartScheduler.API.Controllers;
 
@@ -19,12 +20,12 @@ public class ContractorsController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<ContractorsController> _logger;
-    private readonly IAuthorizationService _authorizationService;
+    private readonly IAuthService _authorizationService;
 
     public ContractorsController(
         ApplicationDbContext dbContext,
         ILogger<ContractorsController> logger,
-        IAuthorizationService authorizationService)
+        IAuthService authorizationService)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -83,9 +84,9 @@ public class ContractorsController : ControllerBase
                 }
             });
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error retrieving contractors");
+            _logger.LogError(exception, "Error retrieving contractors");
             throw;
         }
     }
@@ -150,9 +151,9 @@ public class ContractorsController : ControllerBase
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error creating contractor");
+            _logger.LogError(exception, "Error creating contractor");
             throw;
         }
     }

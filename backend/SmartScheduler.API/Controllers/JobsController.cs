@@ -8,6 +8,7 @@ using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
 using SmartScheduler.Infrastructure.Persistence;
+using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 
 namespace SmartScheduler.API.Controllers;
 
@@ -21,12 +22,12 @@ public class JobsController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<JobsController> _logger;
-    private readonly IAuthorizationService _authorizationService;
+    private readonly IAuthService _authorizationService;
 
     public JobsController(
         ApplicationDbContext dbContext,
         ILogger<JobsController> logger,
-        IAuthorizationService authorizationService)
+        IAuthService authorizationService)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -110,9 +111,9 @@ public class JobsController : ControllerBase
             _logger.LogWarning(ex, "Missing user claims");
             throw new UnauthorizedException(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error retrieving jobs");
+            _logger.LogError(exception, "Error retrieving jobs");
             throw;
         }
     }
@@ -181,26 +182,26 @@ public class JobsController : ControllerBase
 
             return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, response);
         }
-        catch (ValidationException ex)
+        catch (ValidationException)
         {
             throw;
         }
-        catch (NotFoundException ex)
+        catch (NotFoundException)
         {
             throw;
         }
-        catch (ForbiddenException ex)
+        catch (ForbiddenException)
         {
             throw;
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException exception)
         {
-            _logger.LogWarning(ex, "Missing user claims");
-            throw new UnauthorizedException(ex.Message);
+            _logger.LogWarning(exception, "Missing user claims");
+            throw new UnauthorizedException(exception.Message);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error creating job");
+            _logger.LogError(exception, "Error creating job");
             throw;
         }
     }
@@ -258,22 +259,22 @@ public class JobsController : ControllerBase
 
             return Ok(response);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException exception)
         {
-            _logger.LogWarning(ex, "Missing user claims");
-            throw new UnauthorizedException(ex.Message);
+            _logger.LogWarning(exception, "Missing user claims");
+            throw new UnauthorizedException(exception.Message);
         }
-        catch (NotFoundException ex)
+        catch (NotFoundException)
         {
             throw;
         }
-        catch (ForbiddenException ex)
+        catch (ForbiddenException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error retrieving job {JobId}", id);
+            _logger.LogError(exception, "Error retrieving job {JobId}", id);
             throw;
         }
     }

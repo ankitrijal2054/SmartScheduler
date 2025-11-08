@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Exceptions;
 using SmartScheduler.Infrastructure.Persistence;
+using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 
 namespace SmartScheduler.API.Controllers;
 
@@ -17,12 +18,12 @@ public class RecommendationsController : ControllerBase
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<RecommendationsController> _logger;
-    private readonly IAuthorizationService _authorizationService;
+    private readonly IAuthService _authorizationService;
 
     public RecommendationsController(
         ApplicationDbContext dbContext,
         ILogger<RecommendationsController> logger,
-        IAuthorizationService authorizationService)
+        IAuthService authorizationService)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -80,18 +81,18 @@ public class RecommendationsController : ControllerBase
                 contractors = recommendedContractors
             });
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException exception)
         {
-            _logger.LogWarning(ex, "Missing user claims");
-            throw new UnauthorizedException(ex.Message);
+            _logger.LogWarning(exception, "Missing user claims");
+            throw new UnauthorizedException(exception.Message);
         }
-        catch (ValidationException ex)
+        catch (ValidationException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error retrieving recommendations");
+            _logger.LogError(exception, "Error retrieving recommendations");
             throw;
         }
     }

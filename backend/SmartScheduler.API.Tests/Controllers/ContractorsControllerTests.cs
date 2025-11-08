@@ -207,7 +207,7 @@ public class ContractorsControllerTests
     }
 
     [Fact]
-    public async Task GetContractors_WithNoAuthentication_ThrowsUnauthorizedException()
+    public Task GetContractors_WithNoAuthentication_ThrowsUnauthorizedException()
     {
         // Arrange
         var mockHttpContext = new Mock<HttpContext>();
@@ -225,6 +225,7 @@ public class ContractorsControllerTests
         // Act & Assert
         // Note: In real ASP.NET Core, [Authorize] attribute prevents this from being called
         // This is more of an edge case test
+        return Task.CompletedTask;
     }
 }
 
