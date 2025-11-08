@@ -147,7 +147,7 @@ public class ContractorsController : ControllerBase
 
             return CreatedAtAction(nameof(GetContractors), new { id = contractor.Id }, response);
         }
-        catch (ValidationException ex)
+        catch (ValidationException)
         {
             throw;
         }

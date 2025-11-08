@@ -160,7 +160,9 @@ public class JobsController : ControllerBase
                 EstimatedDurationHours = createJobDto.EstimatedDurationHours,
                 Status = JobStatus.Pending,
                 Latitude = 0, // Would be calculated from location in real scenario
-                Longitude = 0
+                Longitude = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             _dbContext.Jobs.Add(job);
@@ -226,6 +228,7 @@ public class JobsController : ControllerBase
             var job = await _dbContext.Jobs
                 .Include(j => j.Customer)
                 .Include(j => j.Assignment)
+                .ThenInclude(a => a!.Contractor)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
             if (job == null)
@@ -235,8 +238,8 @@ public class JobsController : ControllerBase
             bool isAuthorized = userRole switch
             {
                 "Dispatcher" => true, // Dispatcher can see all jobs
-                "Customer" => _authorizationService.ValidateUserOwnsResource(userId, job.CustomerId),
-                "Contractor" => job.Assignment != null && _authorizationService.ValidateUserOwnsResource(userId, job.Assignment.ContractorId),
+                "Customer" => job.Customer != null && _authorizationService.ValidateUserOwnsResource(userId, job.Customer.UserId),
+                "Contractor" => job.Assignment?.Contractor != null && _authorizationService.ValidateUserOwnsResource(userId, job.Assignment.Contractor.UserId),
                 _ => false
             };
 

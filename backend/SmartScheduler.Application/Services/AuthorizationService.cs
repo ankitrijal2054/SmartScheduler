@@ -46,7 +46,7 @@ public class AuthorizationService : IAuthorizationService
             {
                 // Filter jobs where this contractor has an assignment
                 return data.Where(j => ((Job)(object)j).Assignment != null && 
-                                      ((Job)(object)j).Assignment.ContractorId == userId);
+                                      ((Job)(object)j).Assignment!.ContractorId == userId);
             }
             
             if (typeof(T) == typeof(Assignment))
