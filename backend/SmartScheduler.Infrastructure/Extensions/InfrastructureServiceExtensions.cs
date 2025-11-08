@@ -33,6 +33,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IContractorRepository, ContractorRepository>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
         services.AddScoped<IDispatcherContractorListRepository, DispatcherContractorListRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+
+        // Register application services
+        services.AddScoped<IRatingAggregationService, RatingAggregationService>();
 
         // Register external service clients
         services.AddHttpClient<GoogleMapsGeocodingService>();
