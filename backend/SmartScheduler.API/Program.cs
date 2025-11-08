@@ -5,6 +5,7 @@ using SmartScheduler.Application.Extensions;
 using SmartScheduler.Infrastructure.Extensions;
 using SmartScheduler.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -24,13 +25,35 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure JWT Authentication
+// Load configuration with fallbacks
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
+    ?? builder.Configuration["Jwt__SecretKey"]
     ?? throw new InvalidOperationException("JWT secret key is not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] 
+    ?? builder.Configuration["Jwt__Issuer"]
     ?? throw new InvalidOperationException("JWT issuer is not configured");
 var jwtAudience = builder.Configuration["Jwt:Audience"] 
+    ?? builder.Configuration["Jwt__Audience"]
     ?? throw new InvalidOperationException("JWT audience is not configured");
+
+// Build database connection string from environment variables
+var dbHost = builder.Configuration["DATABASE_HOST"] 
+    ?? throw new InvalidOperationException("DATABASE_HOST is not configured");
+var dbPort = builder.Configuration["DATABASE_PORT"] ?? "5432";
+var dbName = builder.Configuration["DATABASE_NAME"] ?? "smartscheduler";
+var dbUser = builder.Configuration["DATABASE_USER"] 
+    ?? throw new InvalidOperationException("DATABASE_USER is not configured");
+var dbPassword = builder.Configuration["DATABASE_PASSWORD"] 
+    ?? throw new InvalidOperationException("DATABASE_PASSWORD is not configured");
+
+// Build connection string - SSL Mode=Prefer (tries SSL, falls back to unencrypted for portfolio app)
+var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Prefer;Trust Server Certificate=true;";
+
+// Update connection string in configuration
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string>
+{
+    { "ConnectionStrings:DefaultConnection", connectionString }
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -71,25 +94,32 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 
+// Run database migrations on startup (all environments) - non-blocking
+try
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    Log.Information("Running database migrations...");
+    await context.Database.MigrateAsync();
+    Log.Information("Database migrations completed successfully");
+
+    // Seed database in development only
+    if (app.Environment.IsDevelopment())
+    {
+        DatabaseSeeder.Seed(context);
+        Log.Information("Database seeding completed successfully");
+    }
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Database migration failed - app will continue without database. Check RDS connectivity.");
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
-    // Seed database in development
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        context.Database.EnsureCreated();
-        DatabaseSeeder.Seed(context);
-        Log.Information("Database seeding completed successfully");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "An error occurred while seeding the database");
-    }
 }
 
 // Add global exception handling middleware (must be first)

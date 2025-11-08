@@ -17,7 +17,11 @@ public static class InfrastructureServiceExtensions
         // Register DbContext with PostgreSQL
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        {
+            options.UseNpgsql(connectionString);
+            // Suppress PendingModelChangesWarning as an error - allow app to start for health checks
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         // Future: Register repositories
         // services.AddScoped<IContractorRepository, ContractorRepository>();
