@@ -146,7 +146,9 @@ public class JobsControllerTests
             Description = "Fix leaking pipe",
             Status = JobStatus.Pending,
             Latitude = 0,
-            Longitude = 0
+            Longitude = 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         var job2 = new Job
@@ -159,7 +161,9 @@ public class JobsControllerTests
             Status = JobStatus.Pending,
             Latitude = 0,
             Longitude = 0,
-            AssignedContractorId = contractor.Id
+            AssignedContractorId = contractor.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         _dbContext.Jobs.AddRange(job1, job2);
