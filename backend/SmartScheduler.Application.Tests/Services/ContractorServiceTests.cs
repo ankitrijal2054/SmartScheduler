@@ -22,6 +22,7 @@ public class ContractorServiceTests
     private readonly ContractorService _service;
     private readonly IContractorRepository _repository;
     private readonly ApplicationDbContext _dbContext;
+    private readonly Mock<IGeocodingService> _geocodingServiceMock;
     private readonly Mock<ILogger<ContractorService>> _loggerMock;
 
     public ContractorServiceTests()
@@ -33,8 +34,12 @@ public class ContractorServiceTests
 
         _dbContext = new ApplicationDbContext(options);
         _repository = new ContractorRepository(_dbContext);
+        _geocodingServiceMock = new Mock<IGeocodingService>();
+        _geocodingServiceMock
+            .Setup(g => g.GeocodeAddressAsync(It.IsAny<string>()))
+            .ReturnsAsync((40.7128, -74.0060)); // Mock coordinates for NYC
         _loggerMock = new Mock<ILogger<ContractorService>>();
-        _service = new ContractorService(_repository, _loggerMock.Object);
+        _service = new ContractorService(_repository, _geocodingServiceMock.Object, _loggerMock.Object);
     }
 
     #region CreateContractorAsync Tests

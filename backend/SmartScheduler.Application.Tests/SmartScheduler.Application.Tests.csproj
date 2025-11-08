@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SmartScheduler.Application\SmartScheduler.Application.csproj" />
+    <ProjectReference Include="..\SmartScheduler.Infrastructure\SmartScheduler.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

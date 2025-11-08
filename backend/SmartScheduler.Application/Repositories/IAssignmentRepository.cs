@@ -1,0 +1,50 @@
+using SmartScheduler.Domain.Entities;
+using SmartScheduler.Domain.Enums;
+
+namespace SmartScheduler.Application.Repositories;
+
+/// <summary>
+/// Repository interface for Assignment entity operations.
+/// Handles querying and persisting assignment data.
+/// </summary>
+public interface IAssignmentRepository
+{
+    /// <summary>
+    /// Gets all active (non-completed, non-declined) assignments for a contractor on a specific date.
+    /// Active statuses: Pending, Accepted, InProgress.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID to query for.</param>
+    /// <param name="targetDate">The date to filter assignments by (uses job's DesiredDateTime).</param>
+    /// <returns>List of active assignments for the contractor on the target date.</returns>
+    Task<IEnumerable<Assignment>> GetActiveAssignmentsByContractorAndDateAsync(int contractorId, DateTime targetDate);
+
+    /// <summary>
+    /// Gets all active assignments for a contractor.
+    /// Active statuses: Pending, Accepted, InProgress.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID to query for.</param>
+    /// <returns>List of all active assignments for the contractor.</returns>
+    Task<IEnumerable<Assignment>> GetActiveAssignmentsByContractorAsync(int contractorId);
+
+    /// <summary>
+    /// Creates a new assignment.
+    /// </summary>
+    /// <param name="assignment">The assignment entity to create.</param>
+    /// <returns>The created assignment entity.</returns>
+    Task<Assignment> CreateAsync(Assignment assignment);
+
+    /// <summary>
+    /// Updates an existing assignment.
+    /// </summary>
+    /// <param name="assignment">The assignment entity to update.</param>
+    /// <returns>The updated assignment entity.</returns>
+    Task<Assignment> UpdateAsync(Assignment assignment);
+
+    /// <summary>
+    /// Gets an assignment by ID.
+    /// </summary>
+    /// <param name="id">The assignment ID.</param>
+    /// <returns>The assignment entity, or null if not found.</returns>
+    Task<Assignment?> GetByIdAsync(int id);
+}
+

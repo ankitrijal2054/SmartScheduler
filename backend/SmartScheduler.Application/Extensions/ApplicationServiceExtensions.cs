@@ -27,6 +27,9 @@ public static class ApplicationServiceExtensions
         // Register contractor services
         services.AddScoped<IContractorService, ContractorService>();
 
+        // Register availability services
+        services.AddScoped<IAvailabilityService, AvailabilityService>();
+
         // Future: Register AutoMapper for DTOs
         // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);
 
