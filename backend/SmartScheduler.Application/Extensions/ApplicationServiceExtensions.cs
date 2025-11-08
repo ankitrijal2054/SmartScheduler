@@ -30,6 +30,9 @@ public static class ApplicationServiceExtensions
         // Register availability services
         services.AddScoped<IAvailabilityService, AvailabilityService>();
 
+        // Register scoring services (Story 2.4)
+        services.AddScoped<IScoringService, ScoringService>();
+
         // Future: Register AutoMapper for DTOs
         // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);
 

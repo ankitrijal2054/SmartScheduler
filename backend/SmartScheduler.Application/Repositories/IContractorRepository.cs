@@ -58,5 +58,32 @@ public interface IContractorRepository
     /// </summary>
     /// <returns>A completed task.</returns>
     Task SaveChangesAsync();
+
+    /// <summary>
+    /// Gets a contractor by ID (Story 2.4 - Recommendation Scoring).
+    /// </summary>
+    /// <param name="id">The contractor ID.</param>
+    /// <returns>The contractor if found, null otherwise.</returns>
+    Task<Contractor?> GetContractorByIdAsync(int id);
+
+    /// <summary>
+    /// Gets all active contractor IDs.
+    /// </summary>
+    /// <returns>List of active contractor IDs.</returns>
+    Task<List<int>> GetActiveContractorIdsAsync();
+
+    /// <summary>
+    /// Gets all contractor IDs in a dispatcher's personal list.
+    /// </summary>
+    /// <param name="dispatcherId">The dispatcher ID.</param>
+    /// <returns>List of contractor IDs in the dispatcher's list.</returns>
+    Task<List<int>> GetDispatcherContractorListAsync(int dispatcherId);
+
+    /// <summary>
+    /// Gets a job by ID (Story 2.4 - Recommendation Scoring).
+    /// </summary>
+    /// <param name="jobId">The job ID.</param>
+    /// <returns>The job if found, null otherwise.</returns>
+    Task<Job?> GetJobByIdAsync(int jobId);
 }
 

@@ -121,5 +121,47 @@ public class ContractorRepository : IContractorRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Gets a contractor by ID with all necessary details for scoring.
+    /// </summary>
+    public async Task<Contractor?> GetContractorByIdAsync(int id)
+    {
+        return await _dbContext.Contractors
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id);
+    }
+
+    /// <summary>
+    /// Gets all active contractor IDs for efficient filtering.
+    /// </summary>
+    public async Task<List<int>> GetActiveContractorIdsAsync()
+    {
+        return await _dbContext.Contractors
+            .Where(c => c.IsActive)
+            .Select(c => c.Id)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets all contractor IDs in a dispatcher's personal list.
+    /// </summary>
+    public async Task<List<int>> GetDispatcherContractorListAsync(int dispatcherId)
+    {
+        return await _dbContext.DispatcherContractorLists
+            .Where(dcl => dcl.DispatcherId == dispatcherId)
+            .Select(dcl => dcl.ContractorId)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets a job by ID with all necessary details for scoring.
+    /// </summary>
+    public async Task<Job?> GetJobByIdAsync(int jobId)
+    {
+        return await _dbContext.Jobs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == jobId);
+    }
 }
 

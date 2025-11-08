@@ -46,5 +46,14 @@ public interface IAssignmentRepository
     /// <param name="id">The assignment ID.</param>
     /// <returns>The assignment entity, or null if not found.</returns>
     Task<Assignment?> GetByIdAsync(int id);
+
+    /// <summary>
+    /// Gets all assignments for a contractor on a specific date (Story 2.4 - Available Time Slots).
+    /// Includes all statuses to calculate busy hours.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID.</param>
+    /// <param name="date">The date to filter assignments by.</param>
+    /// <returns>List of assignments for the contractor on the target date.</returns>
+    Task<List<Assignment>> GetContractorAssignmentsByDateAsync(int contractorId, DateTime date);
 }
 

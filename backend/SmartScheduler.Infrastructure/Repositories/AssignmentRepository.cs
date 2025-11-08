@@ -106,5 +106,26 @@ public class AssignmentRepository : IAssignmentRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Gets all assignments for a contractor on a specific date.
+    /// Used to calculate available time slots.
+    /// </summary>
+    public async Task<List<Assignment>> GetContractorAssignmentsByDateAsync(int contractorId, DateTime date)
+    {
+        var startOfDay = date.Date;
+        var endOfDay = startOfDay.AddDays(1).AddTicks(-1); // 23:59:59.9999999
+
+        var assignments = await _dbContext.Assignments
+            .Include(a => a.Job)
+            .Where(a => a.ContractorId == contractorId
+                && a.Job != null
+                && a.Job.DesiredDateTime >= startOfDay
+                && a.Job.DesiredDateTime <= endOfDay)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return assignments;
+    }
 }
 
