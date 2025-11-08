@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 using SmartScheduler.Application.Commands;
+using SmartScheduler.Application.Repositories;
 using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
@@ -18,6 +19,7 @@ public class AddContractorToListCommandHandlerTests
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IDispatcherContractorListRepository _repository;
+    private readonly IContractorRepository _contractorRepository;
     private readonly AddContractorToListCommandHandler _handler;
 
     public AddContractorToListCommandHandlerTests()
@@ -29,7 +31,8 @@ public class AddContractorToListCommandHandlerTests
 
         _dbContext = new ApplicationDbContext(options);
         _repository = new DispatcherContractorListRepository(_dbContext);
-        _handler = new AddContractorToListCommandHandler(_repository, _dbContext);
+        _contractorRepository = new ContractorRepository(_dbContext);
+        _handler = new AddContractorToListCommandHandler(_repository, _contractorRepository);
     }
 
     private void SeedTestData()

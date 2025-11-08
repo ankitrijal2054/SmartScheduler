@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using SmartScheduler.Application.Commands;
+using SmartScheduler.Application.Repositories;
 using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Infrastructure.Persistence;
