@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartScheduler.Application.Repositories;
 using SmartScheduler.Infrastructure.Persistence;
+using SmartScheduler.Infrastructure.Repositories;
 
 namespace SmartScheduler.Infrastructure.Extensions;
 
@@ -23,9 +25,8 @@ public static class InfrastructureServiceExtensions
             options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
-        // Future: Register repositories
-        // services.AddScoped<IContractorRepository, ContractorRepository>();
-        // services.AddScoped<IJobRepository, JobRepository>();
+        // Register repositories
+        services.AddScoped<IContractorRepository, ContractorRepository>();
 
         // Future: Register external service clients
         // services.AddHttpClient<IGoogleMapsClient, GoogleMapsClient>();
