@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartScheduler.Domain.Entities;
+using SmartScheduler.Domain.Enums;
 
 namespace SmartScheduler.Infrastructure.Persistence;
 
@@ -24,6 +25,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Assignment> Assignments { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<DispatcherContractorList> DispatcherContractorLists { get; set; } = null!;
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
 
     /// <summary>
     /// Configures the model using the Fluent API.
@@ -182,7 +184,7 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.Status)
                 .IsRequired()
-                .HasDefaultValue(0); // JobStatus.Pending
+                .HasDefaultValue(JobStatus.Pending);
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
@@ -211,7 +213,7 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.Status)
                 .IsRequired()
-                .HasDefaultValue(0); // AssignmentStatus.Pending
+                .HasDefaultValue(AssignmentStatus.Pending);
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
@@ -266,6 +268,41 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
+        });
+
+        // RefreshToken entity configuration
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            entity.Property(e => e.Token)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            entity.Property(e => e.ExpiresAt)
+                .IsRequired();
+
+            entity.Property(e => e.RevokedAt)
+                .IsRequired(false);
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+
+            // Unique index on Token for efficient lookups
+            entity.HasIndex(e => e.Token)
+                .IsUnique()
+                .HasDatabaseName("IX_RefreshTokens_Token");
+
+            // Index on ExpiresAt for token cleanup queries
+            entity.HasIndex(e => e.ExpiresAt)
+                .HasDatabaseName("IX_RefreshTokens_ExpiresAt");
+
+            // Index on UserId for user token lookups
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_RefreshTokens_UserId");
         });
 
         // Relationships configuration
@@ -349,6 +386,14 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(d => d.ContractorId)
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("FK_DispatcherContractorLists_Contractors");
+
+        // User 1:N → RefreshToken
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("FK_RefreshTokens_Users");
     }
 }
 

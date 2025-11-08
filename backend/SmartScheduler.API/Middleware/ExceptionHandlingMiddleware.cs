@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
 using SmartScheduler.Application.Responses;
 using SmartScheduler.Domain.Exceptions;
 
@@ -90,6 +92,26 @@ public class ExceptionHandlingMiddleware
                 (int)HttpStatusCode.Conflict,
                 "CONFLICT",
                 ex.Message
+            ),
+            SecurityTokenExpiredException ex => (
+                (int)HttpStatusCode.Unauthorized,
+                "TOKEN_EXPIRED",
+                "Token has expired"
+            ),
+            SecurityTokenInvalidSignatureException ex => (
+                (int)HttpStatusCode.Unauthorized,
+                "INVALID_SIGNATURE",
+                "Invalid or expired token"
+            ),
+            SecurityTokenMalformedException ex => (
+                (int)HttpStatusCode.Unauthorized,
+                "MALFORMED_TOKEN",
+                "Invalid or expired token"
+            ),
+            SecurityTokenException ex => (
+                (int)HttpStatusCode.Unauthorized,
+                "INVALID_TOKEN",
+                "Invalid or expired token"
             ),
             _ => (
                 (int)HttpStatusCode.InternalServerError,
