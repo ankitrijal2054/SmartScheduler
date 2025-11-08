@@ -40,7 +40,13 @@ public class ContractorsControllerTests
         _repository = new ContractorRepository(_dbContext);
         
         var serviceLoggerMock = new Mock<ILogger<ContractorService>>();
-        _contractorService = new ContractorService(_repository, serviceLoggerMock.Object);
+        var geocodingServiceMock = new Mock<IGeocodingService>();
+        // Mock geocoding to return test coordinates
+        geocodingServiceMock
+            .Setup(g => g.GeocodeAddressAsync(It.IsAny<string>()))
+            .ReturnsAsync((40.7128, -74.0060)); // Default to NYC coordinates for tests
+        
+        _contractorService = new ContractorService(_repository, geocodingServiceMock.Object, serviceLoggerMock.Object);
         
         _loggerMock = new Mock<ILogger<ContractorsController>>();
         _controller = new ContractorsController(_contractorService, _loggerMock.Object);

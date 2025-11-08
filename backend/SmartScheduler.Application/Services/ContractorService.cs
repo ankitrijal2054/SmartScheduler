@@ -14,11 +14,16 @@ namespace SmartScheduler.Application.Services;
 public class ContractorService : IContractorService
 {
     private readonly IContractorRepository _repository;
+    private readonly IGeocodingService _geocodingService;
     private readonly ILogger<ContractorService> _logger;
 
-    public ContractorService(IContractorRepository repository, ILogger<ContractorService> logger)
+    public ContractorService(
+        IContractorRepository repository,
+        IGeocodingService geocodingService,
+        ILogger<ContractorService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _geocodingService = geocodingService ?? throw new ArgumentNullException(nameof(geocodingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -78,9 +83,10 @@ public class ContractorService : IContractorService
             }
         }
 
+        // Geocode the address to get latitude/longitude
+        var (latitude, longitude) = await _geocodingService.GeocodeAddressAsync(request.Location);
+
         // Create contractor entity
-        // Note: In a production system, we would integrate with Google Maps here to geocode the address
-        // For now, we use default coordinates for US center
         var contractor = new Contractor
         {
             Name = request.Name,
@@ -93,9 +99,8 @@ public class ContractorService : IContractorService
             ReviewCount = 0,
             AverageRating = null,
             TotalJobsCompleted = 0,
-            // Default coordinates (center of US) - would be replaced by actual geocoding
-            Latitude = 39.8283m,
-            Longitude = -98.5795m,
+            Latitude = (decimal)latitude,  // Geocoded coordinates
+            Longitude = (decimal)longitude,
             CreatedAt = DateTime.UtcNow,
             UserId = 0 // Will be set when linking with user account (future story)
         };
@@ -181,7 +186,14 @@ public class ContractorService : IContractorService
                 throw new ValidationException("Location must be between 5 and 200 characters");
             }
             contractor.Location = request.Location;
-            // In production, would re-geocode here
+            
+            // Re-geocode the new location
+            var (latitude, longitude) = await _geocodingService.GeocodeAddressAsync(request.Location);
+            contractor.Latitude = (decimal)latitude;
+            contractor.Longitude = (decimal)longitude;
+            
+            _logger.LogInformation("Location updated for contractor {ContractorId}. New coordinates: ({Latitude}, {Longitude})", 
+                contractor.Id, latitude, longitude);
         }
 
         // Update phone if provided

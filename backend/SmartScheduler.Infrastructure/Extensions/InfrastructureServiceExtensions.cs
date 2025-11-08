@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartScheduler.Application.Repositories;
+using SmartScheduler.Application.Services;
 using SmartScheduler.Infrastructure.Persistence;
 using SmartScheduler.Infrastructure.Repositories;
+using SmartScheduler.Infrastructure.Services;
 
 namespace SmartScheduler.Infrastructure.Extensions;
 
@@ -28,9 +30,9 @@ public static class InfrastructureServiceExtensions
         // Register repositories
         services.AddScoped<IContractorRepository, ContractorRepository>();
 
-        // Future: Register external service clients
-        // services.AddHttpClient<IGoogleMapsClient, GoogleMapsClient>();
-        // services.AddSingleton<IEmailService, AwsSesEmailService>();
+        // Register external service clients
+        services.AddHttpClient<GoogleMapsGeocodingService>();
+        services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
 
         return services;
     }
