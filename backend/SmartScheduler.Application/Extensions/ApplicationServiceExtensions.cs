@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
+using SmartScheduler.Application.Services;
 
 namespace SmartScheduler.Application.Extensions;
 
@@ -15,6 +16,13 @@ public static class ApplicationServiceExtensions
 
         // Register FluentValidation validators
         services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
+
+        // Register authentication services
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IPasswordHashingService, PasswordHashingService>();
+
+        // Register authorization services
+        services.AddScoped<IAuthorizationService, AuthorizationService>();
 
         // Future: Register AutoMapper for DTOs
         // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);

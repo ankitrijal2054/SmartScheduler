@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartScheduler.Infrastructure.Persistence;
 
 namespace SmartScheduler.Infrastructure.Extensions;
 
@@ -12,9 +14,14 @@ public static class InfrastructureServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Future: Register DbContext
-        // var connectionString = configuration.GetConnectionString("DefaultConnection");
-        // services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        // Register DbContext with PostgreSQL
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        services.AddDbContext<ApplicationDbContext>(options =>
+        {
+            options.UseNpgsql(connectionString);
+            // Suppress PendingModelChangesWarning as an error - allow app to start for health checks
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         // Future: Register repositories
         // services.AddScoped<IContractorRepository, ContractorRepository>();

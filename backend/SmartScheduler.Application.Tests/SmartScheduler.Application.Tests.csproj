@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -24,8 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SmartScheduler.API\SmartScheduler.API.csproj" />
     <ProjectReference Include="..\SmartScheduler.Application\SmartScheduler.Application.csproj" />
   </ItemGroup>
 
 </Project>
+
