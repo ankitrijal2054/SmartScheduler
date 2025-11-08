@@ -1,57 +1,37 @@
 using System.Security.Claims;
 using FluentAssertions;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using SmartScheduler.API.Controllers;
+using SmartScheduler.Application.DTOs;
+using SmartScheduler.Application.Queries;
 using SmartScheduler.Application.Services;
-using SmartScheduler.Domain.Entities;
-using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
-using SmartScheduler.Infrastructure.Persistence;
 
 namespace SmartScheduler.API.Tests.Controllers;
 
 public class RecommendationsControllerTests
 {
     private readonly RecommendationsController _controller;
-    private readonly ApplicationDbContext _dbContext;
-    private readonly IAuthorizationService _authorizationService;
-    private readonly IJwtTokenService _jwtTokenService;
-    private readonly IPasswordHashingService _passwordHashingService;
+    private readonly Mock<IMediator> _mediatorMock;
+    private readonly Mock<IAuthorizationService> _authorizationServiceMock;
     private readonly Mock<ILogger<RecommendationsController>> _loggerMock;
 
     public RecommendationsControllerTests()
     {
-        // Setup in-memory database
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        _dbContext = new ApplicationDbContext(options);
-
-        // Setup JWT configuration
-        var configBuilder = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "Jwt:SecretKey", "test-secret-key-with-more-than-32-characters-for-testing" },
-                { "Jwt:Issuer", "SmartScheduler" },
-                { "Jwt:Audience", "SmartSchedulerAPI" },
-                { "Jwt:JwtExpiry", "01:00:00" },
-                { "Jwt:RefreshTokenExpiry", "7.00:00:00" }
-            });
-
-        var configuration = configBuilder.Build();
-        _jwtTokenService = new JwtTokenService(configuration);
-        _passwordHashingService = new PasswordHashingService();
-        _authorizationService = new AuthorizationService();
+        _mediatorMock = new Mock<IMediator>();
+        _authorizationServiceMock = new Mock<IAuthorizationService>();
         _loggerMock = new Mock<ILogger<RecommendationsController>>();
 
-        _controller = new RecommendationsController(_dbContext, _loggerMock.Object, _authorizationService);
+        _controller = new RecommendationsController(
+            _mediatorMock.Object,
+            _loggerMock.Object,
+            _authorizationServiceMock.Object
+        );
     }
 
     private void SetupControllerUser(string role, int userId)
@@ -68,174 +48,209 @@ public class RecommendationsControllerTests
 
         var mockHttpContext = new Mock<HttpContext>();
         mockHttpContext.Setup(x => x.User).Returns(claimsPrincipal);
+
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = mockHttpContext.Object
         };
     }
 
-    private void SeedTestData()
-    {
-        // Create dispatcher user
-        var dispatcherUser = new User
-        {
-            Id = 1,
-            Email = "dispatcher@test.com",
-            PasswordHash = "hash",
-            Role = UserRole.Dispatcher,
-            IsActive = true
-        };
-
-        _dbContext.Users.Add(dispatcherUser);
-        _dbContext.SaveChanges();
-
-        // Create contractors
-        var plumbingContractor1 = new Contractor
-        {
-            Name = "Best Plumber",
-            Location = "123 Main St",
-            PhoneNumber = "555-0001",
-            TradeType = TradeType.Plumbing,
-            WorkingHoursStart = TimeSpan.FromHours(9),
-            WorkingHoursEnd = TimeSpan.FromHours(17),
-            IsActive = true,
-            AverageRating = 4.8m,
-            ReviewCount = 50,
-            TotalJobsCompleted = 100
-        };
-
-        var plumbingContractor2 = new Contractor
-        {
-            Name = "Good Plumber",
-            Location = "456 Oak Ave",
-            PhoneNumber = "555-0002",
-            TradeType = TradeType.Plumbing,
-            WorkingHoursStart = TimeSpan.FromHours(8),
-            WorkingHoursEnd = TimeSpan.FromHours(18),
-            IsActive = true,
-            AverageRating = 4.5m,
-            ReviewCount = 30,
-            TotalJobsCompleted = 75
-        };
-
-        var electricalContractor = new Contractor
-        {
-            Name = "Electrician Pro",
-            Location = "789 Pine St",
-            PhoneNumber = "555-0003",
-            TradeType = TradeType.Electrical,
-            WorkingHoursStart = TimeSpan.FromHours(9),
-            WorkingHoursEnd = TimeSpan.FromHours(17),
-            IsActive = true,
-            AverageRating = 4.9m,
-            ReviewCount = 25,
-            TotalJobsCompleted = 50
-        };
-
-        _dbContext.Contractors.AddRange(plumbingContractor1, plumbingContractor2, electricalContractor);
-        _dbContext.SaveChanges();
-    }
+    #region GetRecommendations Tests
 
     [Fact]
-    public async Task GetRecommendations_WithDispatcherRole_ReturnsOk()
+    public async Task GetRecommendations_WithValidJobId_ReturnsOkWithRecommendations()
     {
         // Arrange
-        SeedTestData();
         SetupControllerUser("Dispatcher", 1);
+
+        int jobId = 1;
+        var mockResponse = new RecommendationResponseDto
+        {
+            Recommendations = new List<RecommendationDto>
+            {
+                new RecommendationDto
+                {
+                    ContractorId = 1,
+                    Name = "John Smith",
+                    Score = 0.92m,
+                    Rating = 4.8m,
+                    ReviewCount = 24,
+                    Distance = 3.5m,
+                    TravelTime = 12,
+                    AvailableTimeSlots = new List<DateTime>()
+                }
+            },
+            Message = "Success"
+        };
+
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
+
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _controller.GetRecommendations("Plumbing", "123 Main St");
+        var result = await _controller.GetRecommendations(jobId, false);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        okResult.StatusCode.Should().Be(200);
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        okResult!.StatusCode.Should().Be(200);
+
+        var returnValue = okResult.Value as RecommendationResponseDto;
+        returnValue.Should().NotBeNull();
+        returnValue!.Recommendations.Should().HaveCount(1);
+        returnValue.Message.Should().Be("Success");
     }
 
     [Fact]
-    public async Task GetRecommendations_WithCustomerRole_ReturnsForbidden()
+    public async Task GetRecommendations_WithContractorListOnly_PassesFilterToQuery()
     {
         // Arrange
-        SeedTestData();
+        SetupControllerUser("Dispatcher", 1);
 
-        var customerUser = new User
+        int jobId = 1;
+        var mockResponse = new RecommendationResponseDto
         {
-            Id = 2,
-            Email = "customer@test.com",
-            PasswordHash = "hash",
-            Role = UserRole.Customer,
-            IsActive = true
+            Recommendations = new List<RecommendationDto>(),
+            Message = "Success"
         };
 
-        _dbContext.Users.Add(customerUser);
-        await _dbContext.SaveChangesAsync();
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
 
-        SetupControllerUser("Customer", 2);
-
-        // The [Authorize(Roles = "Dispatcher")] attribute should prevent this,
-        // but if it somehow reaches the controller, it should be forbidden
-        // In practice, the framework handles this before the action executes
-    }
-
-    [Fact]
-    public async Task GetRecommendations_WithContractorRole_ReturnsForbidden()
-    {
-        // Arrange
-        SeedTestData();
-
-        var contractorUser = new User
-        {
-            Id = 3,
-            Email = "contractor@test.com",
-            PasswordHash = "hash",
-            Role = UserRole.Contractor,
-            IsActive = true
-        };
-
-        _dbContext.Users.Add(contractorUser);
-        await _dbContext.SaveChangesAsync();
-
-        SetupControllerUser("Contractor", 3);
-
-        // The [Authorize(Roles = "Dispatcher")] attribute should prevent this
-    }
-
-    [Fact]
-    public async Task GetRecommendations_WithMissingJobType_ThrowsValidationException()
-    {
-        // Arrange
-        SeedTestData();
-        SetupControllerUser("Dispatcher", 1);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<ValidationException>(
-            () => _controller.GetRecommendations("", "123 Main St"));
-    }
-
-    [Fact]
-    public async Task GetRecommendations_WithMissingLocation_ThrowsValidationException()
-    {
-        // Arrange
-        SeedTestData();
-        SetupControllerUser("Dispatcher", 1);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<ValidationException>(
-            () => _controller.GetRecommendations("Plumbing", ""));
-    }
-
-    [Fact]
-    public async Task GetRecommendations_ReturnsSortedByRating()
-    {
-        // Arrange
-        SeedTestData();
-        SetupControllerUser("Dispatcher", 1);
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockResponse);
 
         // Act
-        var result = await _controller.GetRecommendations("Plumbing", "123 Main St");
+        var result = await _controller.GetRecommendations(jobId, contractorListOnly: true);
 
         // Assert
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        okResult.StatusCode.Should().Be(200);
+        _mediatorMock.Verify(m =>
+            m.Send(
+                It.Is<GetContractorRecommendationsQuery>(q =>
+                    q.JobId == jobId &&
+                    q.ContractorListOnly == true),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
     }
+
+    [Fact]
+    public async Task GetRecommendations_WithNoContractors_ReturnsOkWithEmptyList()
+    {
+        // Arrange
+        SetupControllerUser("Dispatcher", 1);
+
+        int jobId = 1;
+        var mockResponse = new RecommendationResponseDto
+        {
+            Recommendations = new List<RecommendationDto>(),
+            Message = "No available contractors"
+        };
+
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
+
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockResponse);
+
+        // Act
+        var result = await _controller.GetRecommendations(jobId, false);
+
+        // Assert
+        var okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        okResult!.StatusCode.Should().Be(200);
+
+        var returnValue = okResult.Value as RecommendationResponseDto;
+        returnValue.Should().NotBeNull();
+        returnValue!.Recommendations.Should().BeEmpty();
+        returnValue.Message.Should().Be("No available contractors");
+    }
+
+    [Fact]
+    public async Task GetRecommendations_WithInvalidJobId_ReturnsBadRequest()
+    {
+        // Arrange
+        SetupControllerUser("Dispatcher", 1);
+
+        int jobId = 999;
+
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
+
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotFoundException($"Job with ID {jobId} not found"));
+
+        // Act
+        var result = await _controller.GetRecommendations(jobId, false);
+
+        // Assert
+        var notFoundResult = result.Result as NotFoundObjectResult;
+        notFoundResult.Should().NotBeNull();
+        notFoundResult!.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_WithPastDesiredDateTime_ReturnsBadRequest()
+    {
+        // Arrange
+        SetupControllerUser("Dispatcher", 1);
+
+        int jobId = 1;
+
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
+
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException("Desired date/time cannot be in the past"));
+
+        // Act
+        var result = await _controller.GetRecommendations(jobId, false);
+
+        // Assert
+        var badRequestResult = result.Result as BadRequestObjectResult;
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_WithUnexpectedError_ReturnsInternalServerError()
+    {
+        // Arrange
+        SetupControllerUser("Dispatcher", 1);
+
+        int jobId = 1;
+
+        _authorizationServiceMock
+            .Setup(a => a.GetCurrentUserIdFromContext(It.IsAny<ClaimsPrincipal>()))
+            .Returns(1);
+
+        _mediatorMock
+            .Setup(m => m.Send(It.IsAny<GetContractorRecommendationsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Unexpected error"));
+
+        // Act
+        var result = await _controller.GetRecommendations(jobId, false);
+
+        // Assert
+        var serverResult = result.Result as ObjectResult;
+        serverResult.Should().NotBeNull();
+        serverResult!.StatusCode.Should().Be(500);
+    }
+
+    #endregion
 }
-

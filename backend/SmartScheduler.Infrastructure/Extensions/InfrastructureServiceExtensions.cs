@@ -1,7 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using SmartScheduler.Application.Repositories;
+using SmartScheduler.Application.Services;
 using SmartScheduler.Infrastructure.Persistence;
+using SmartScheduler.Infrastructure.Repositories;
+using SmartScheduler.Infrastructure.Services;
 
 namespace SmartScheduler.Infrastructure.Extensions;
 
@@ -23,13 +29,52 @@ public static class InfrastructureServiceExtensions
             options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
-        // Future: Register repositories
-        // services.AddScoped<IContractorRepository, ContractorRepository>();
-        // services.AddScoped<IJobRepository, JobRepository>();
+        // Register repositories
+        services.AddScoped<IContractorRepository, ContractorRepository>();
+        services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<IDispatcherContractorListRepository, DispatcherContractorListRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
 
-        // Future: Register external service clients
-        // services.AddHttpClient<IGoogleMapsClient, GoogleMapsClient>();
-        // services.AddSingleton<IEmailService, AwsSesEmailService>();
+        // Register application services
+        services.AddScoped<IRatingAggregationService, RatingAggregationService>();
+
+        // Register external service clients
+        services.AddHttpClient<GoogleMapsGeocodingService>();
+        services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
+
+        // Register Distance Service with Google Maps API integration and Redis caching
+        var googleMapsApiKey = configuration["GoogleMaps:ApiKey"];
+        var redisConnectionString = configuration["Redis:ConnectionString"];
+
+        // Only register distance services if configuration is available
+        if (!string.IsNullOrEmpty(googleMapsApiKey) && !string.IsNullOrEmpty(redisConnectionString))
+        {
+            services.AddHttpClient<GoogleMapsDistanceService>()
+                .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+
+            services.AddScoped(provider =>
+                new GoogleMapsDistanceService(
+                    provider.GetRequiredService<HttpClient>(),
+                    googleMapsApiKey,
+                    provider.GetRequiredService<ILogger<GoogleMapsDistanceService>>()
+                )
+            );
+
+            // Configure Redis distributed cache
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+            });
+
+            // Register CachedDistanceService as the primary IDistanceService implementation
+            services.AddScoped<IDistanceService>(provider =>
+                new CachedDistanceService(
+                    provider.GetRequiredService<GoogleMapsDistanceService>(),
+                    provider.GetRequiredService<IDistributedCache>(),
+                    provider.GetRequiredService<ILogger<CachedDistanceService>>()
+                )
+            );
+        }
 
         return services;
     }

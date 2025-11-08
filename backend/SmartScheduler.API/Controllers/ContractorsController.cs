@@ -1,161 +1,233 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SmartScheduler.Application.DTOs;
+using SmartScheduler.Application.Responses;
 using SmartScheduler.Application.Services;
-using SmartScheduler.Domain.Entities;
-using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
-using SmartScheduler.Infrastructure.Persistence;
-using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 
 namespace SmartScheduler.API.Controllers;
 
 /// <summary>
 /// Contractors controller for managing contractor profiles and listings.
+/// All endpoints require JWT authentication.
+/// Create/Update/Delete operations require Dispatcher role.
 /// </summary>
 [ApiController]
 [Route("api/v1/contractors")]
+[Authorize]
 public class ContractorsController : ControllerBase
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IContractorService _contractorService;
     private readonly ILogger<ContractorsController> _logger;
-    private readonly IAuthService _authorizationService;
 
     public ContractorsController(
-        ApplicationDbContext dbContext,
-        ILogger<ContractorsController> logger,
-        IAuthService authorizationService)
+        IContractorService contractorService,
+        ILogger<ContractorsController> logger)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _contractorService = contractorService ?? throw new ArgumentNullException(nameof(contractorService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _authorizationService = authorizationService ?? throw new ArgumentNullException(nameof(authorizationService));
     }
 
     /// <summary>
     /// Get list of all active contractors (paginated).
-    /// Requires authentication but no role restriction - all authenticated users can view contractor list.
+    /// All authenticated users can view contractor list.
     /// </summary>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Number of results per page (default: 10)</param>
+    /// <param name="pageNumber">Page number (default: 1)</param>
+    /// <param name="pageSize">Number of results per page (default: 50, max: 100)</param>
     /// <returns>200 OK with paginated list of contractors</returns>
     [HttpGet]
-    [Authorize]
-    public async Task<IActionResult> GetContractors([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<ContractorResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<PaginatedResponse<ContractorResponse>>>> GetContractors(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 50)
     {
-        if (page < 1 || pageSize < 1 || pageSize > 100)
-        {
-            throw new ValidationException("Page and pageSize must be valid. PageSize must be between 1 and 100.");
-        }
-
         try
         {
-            var contractors = await _dbContext.Contractors
-                .Where(c => c.IsActive)
-                .OrderByDescending(c => c.AverageRating)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(c => new ContractorDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Location = c.Location,
-                    TradeType = c.TradeType.ToString(),
-                    AverageRating = c.AverageRating,
-                    ReviewCount = c.ReviewCount
-                })
-                .ToListAsync();
+            _logger.LogInformation("Get contractors list requested. Page: {PageNumber}, PageSize: {PageSize}", pageNumber, pageSize);
 
-            var totalCount = await _dbContext.Contractors
-                .Where(c => c.IsActive)
-                .CountAsync();
-
-            _logger.LogInformation("Retrieved {ContractorCount} contractors for user", contractors.Count);
-
-            return Ok(new
-            {
-                data = contractors,
-                pagination = new
-                {
-                    page,
-                    pageSize,
-                    total = totalCount,
-                    totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
-                }
-            });
+            var result = await _contractorService.GetAllContractorsAsync(pageNumber, pageSize);
+            
+            return Ok(new ApiResponse<PaginatedResponse<ContractorResponse>>(result, 200));
         }
-        catch (Exception exception)
+        catch (ValidationException ex)
         {
-            _logger.LogError(exception, "Error retrieving contractors");
+            _logger.LogWarning(ex, "Validation error retrieving contractors");
+            return BadRequest();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving contractors");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Get a single contractor by ID.
+    /// All authenticated users can view contractor details.
+    /// </summary>
+    /// <param name="id">The contractor ID</param>
+    /// <returns>200 OK with contractor details, or 404 Not Found if not found</returns>
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(ApiResponse<ContractorResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<ContractorResponse>>> GetContractor(int id)
+    {
+        try
+        {
+            _logger.LogInformation("Get contractor requested. ContractorId: {ContractorId}", id);
+
+            var contractor = await _contractorService.GetContractorAsync(id);
+            
+            return Ok(new ApiResponse<ContractorResponse>(contractor, 200));
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Contractor not found. ContractorId: {ContractorId}", id);
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving contractor {ContractorId}", id);
             throw;
         }
     }
 
     /// <summary>
     /// Create a new contractor profile.
-    /// Dispatcher-only operation. Returns 403 Forbidden if user doesn't have Dispatcher role.
+    /// Dispatcher-only operation.
     /// </summary>
-    /// <param name="createContractorDto">Contractor details to create</param>
+    /// <param name="request">Contractor details to create</param>
     /// <returns>201 Created with new contractor, or 403 Forbidden if not dispatcher</returns>
     [HttpPost]
     [Authorize(Roles = "Dispatcher")]
-    public async Task<IActionResult> CreateContractor([FromBody] CreateContractorDto createContractorDto)
+    [ProducesResponseType(typeof(ApiResponse<ContractorResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<ContractorResponse>>> CreateContractor(
+        [FromBody] CreateContractorRequest request)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+            return BadRequest();
 
         try
         {
-            // Validate working hours format
-            if (!TimeSpan.TryParse(createContractorDto.WorkingHoursStart, out var hoursStart))
-                throw new ValidationException("Invalid WorkingHoursStart format. Use HH:mm:ss");
+            var dispatcherId = GetUserId();
+            _logger.LogInformation("Create contractor requested by dispatcher {DispatcherId}", dispatcherId);
 
-            if (!TimeSpan.TryParse(createContractorDto.WorkingHoursEnd, out var hoursEnd))
-                throw new ValidationException("Invalid WorkingHoursEnd format. Use HH:mm:ss");
-
-            // Validate trade type
-            if (!Enum.TryParse<TradeType>(createContractorDto.TradeType, true, out var tradeType))
-                throw new ValidationException($"Invalid TradeType. Supported types: {string.Join(", ", Enum.GetNames(typeof(TradeType)))}");
-
-            var contractor = new Contractor
-            {
-                Name = createContractorDto.Name,
-                Location = createContractorDto.Location,
-                PhoneNumber = createContractorDto.PhoneNumber,
-                TradeType = tradeType,
-                WorkingHoursStart = hoursStart,
-                WorkingHoursEnd = hoursEnd,
-                IsActive = true,
-                ReviewCount = 0,
-                TotalJobsCompleted = 0
-            };
-
-            _dbContext.Contractors.Add(contractor);
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation("Contractor created successfully: {ContractorId}", contractor.Id);
-
-            var response = new ContractorDto
-            {
-                Id = contractor.Id,
-                Name = contractor.Name,
-                Location = contractor.Location,
-                TradeType = contractor.TradeType.ToString(),
-                AverageRating = contractor.AverageRating,
-                ReviewCount = contractor.ReviewCount
-            };
-
-            return CreatedAtAction(nameof(GetContractors), new { id = contractor.Id }, response);
+            var contractor = await _contractorService.CreateContractorAsync(request, dispatcherId);
+            
+            return CreatedAtAction(nameof(GetContractor), new { id = contractor.Id },
+                new ApiResponse<ContractorResponse>(contractor, 201));
         }
-        catch (ValidationException)
+        catch (ValidationException ex)
         {
-            throw;
+            _logger.LogWarning(ex, "Validation error creating contractor");
+            return BadRequest();
         }
-        catch (Exception exception)
+        catch (Exception ex)
         {
-            _logger.LogError(exception, "Error creating contractor");
+            _logger.LogError(ex, "Error creating contractor");
             throw;
         }
     }
-}
 
+    /// <summary>
+    /// Update an existing contractor.
+    /// Dispatcher-only operation. All fields are optional (partial update).
+    /// </summary>
+    /// <param name="id">The contractor ID</param>
+    /// <param name="request">Fields to update</param>
+    /// <returns>200 OK with updated contractor, or 404 Not Found if not found</returns>
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Dispatcher")]
+    [ProducesResponseType(typeof(ApiResponse<ContractorResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<ContractorResponse>>> UpdateContractor(
+        int id,
+        [FromBody] UpdateContractorRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest();
+
+        try
+        {
+            var dispatcherId = GetUserId();
+            _logger.LogInformation("Update contractor requested by dispatcher {DispatcherId} for contractor {ContractorId}", dispatcherId, id);
+
+            var contractor = await _contractorService.UpdateContractorAsync(id, request, dispatcherId);
+            
+            return Ok(new ApiResponse<ContractorResponse>(contractor, 200));
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Contractor not found for update. ContractorId: {ContractorId}", id);
+            return NotFound();
+        }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error updating contractor");
+            return BadRequest();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating contractor {ContractorId}", id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Deactivate a contractor (soft delete).
+    /// Dispatcher-only operation. The contractor will no longer appear in lists.
+    /// </summary>
+    /// <param name="id">The contractor ID</param>
+    /// <returns>204 No Content if successful, or 404 Not Found if not found</returns>
+    [HttpPatch("{id}/deactivate")]
+    [Authorize(Roles = "Dispatcher")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> DeactivateContractor(int id)
+    {
+        try
+        {
+            var dispatcherId = GetUserId();
+            _logger.LogInformation("Deactivate contractor requested by dispatcher {DispatcherId} for contractor {ContractorId}", dispatcherId, id);
+
+            await _contractorService.DeactivateContractorAsync(id, dispatcherId);
+            
+            return NoContent();
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Contractor not found for deactivation. ContractorId: {ContractorId}", id);
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating contractor {ContractorId}", id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Helper method to extract user ID from JWT claims.
+    /// </summary>
+    private int GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+        {
+            throw new UnauthorizedAccessException("User ID not found in claims");
+        }
+        return userId;
+    }
+}

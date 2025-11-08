@@ -1,99 +1,123 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using SmartScheduler.Application.DTOs;
+using SmartScheduler.Application.Queries;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Exceptions;
-using SmartScheduler.Infrastructure.Persistence;
 using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 
 namespace SmartScheduler.API.Controllers;
 
 /// <summary>
 /// Recommendations controller for dispatcher-only contractor recommendations.
-/// Returns top contractor recommendations based on job requirements.
+/// Returns top 5 contractor recommendations ranked by intelligent scoring algorithm.
 /// </summary>
 [ApiController]
 [Route("api/v1/recommendations")]
 public class RecommendationsController : ControllerBase
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IMediator _mediator;
     private readonly ILogger<RecommendationsController> _logger;
     private readonly IAuthService _authorizationService;
 
     public RecommendationsController(
-        ApplicationDbContext dbContext,
+        IMediator mediator,
         ILogger<RecommendationsController> logger,
         IAuthService authorizationService)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _authorizationService = authorizationService ?? throw new ArgumentNullException(nameof(authorizationService));
     }
 
     /// <summary>
-    /// Get recommended contractors for a specific job type and location.
-    /// Dispatcher-only operation. Returns top 5 contractors ranked by score.
+    /// Get top 5 recommended contractors for a specific job.
+    /// Dispatcher-only operation. Rankings based on availability (40%), rating (30%), and distance (30%).
+    /// Response time: <500ms (even with 10,000 contractors in database).
     /// </summary>
-    /// <param name="jobType">Job type / trade type</param>
-    /// <param name="location">Job location (used for distance-based ranking)</param>
-    /// <returns>200 OK with top 5 recommended contractors, or 403 Forbidden if not dispatcher</returns>
+    /// <param name="jobId">The ID of the job to get recommendations for.</param>
+    /// <param name="contractorListOnly">Optional: If true, only recommend from dispatcher's personal list. Default: false.</param>
+    /// <returns>200 OK with top 5 recommended contractors, or error response.</returns>
+    /// <response code="200">Success - returns recommendation response with up to 5 contractors.</response>
+    /// <response code="400">Bad Request - invalid job ID or date/time in the past.</response>
+    /// <response code="401">Unauthorized - missing or invalid JWT token.</response>
+    /// <response code="403">Forbidden - user is not a Dispatcher.</response>
+    /// <response code="500">Internal Server Error - unexpected error during recommendation retrieval.</response>
     [HttpGet]
     [Authorize(Roles = "Dispatcher")]
-    public async Task<IActionResult> GetRecommendations(
-        [FromQuery] string jobType,
-        [FromQuery] string location)
+    public async Task<ActionResult<RecommendationResponseDto>> GetRecommendations(
+        [FromQuery] int jobId,
+        [FromQuery] bool contractorListOnly = false)
     {
-        if (string.IsNullOrWhiteSpace(jobType) || string.IsNullOrWhiteSpace(location))
-        {
-            throw new ValidationException("Both jobType and location parameters are required");
-        }
+        _logger.LogInformation("Recommendations request: JobId={JobId}, ContractorListOnly={ContractorListOnly}", 
+            jobId, contractorListOnly);
 
         try
         {
-            var userId = _authorizationService.GetCurrentUserIdFromContext(User);
+            // Extract dispatcher ID from JWT token
+            var dispatcherId = _authorizationService.GetCurrentUserIdFromContext(User);
 
-            // Get contractors matching the job type, sorted by rating (descending) and active status
-            var recommendedContractors = await _dbContext.Contractors
-                .Where(c => c.IsActive && c.TradeType.ToString() == jobType)
-                .OrderByDescending(c => c.AverageRating ?? 0)
-                .ThenByDescending(c => c.TotalJobsCompleted)
-                .Take(5)
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Name,
-                    Rating = c.AverageRating ?? 0,
-                    c.ReviewCount,
-                    Distance = 0, // Would be calculated in real scenario based on coordinates
-                    TravelTime = 0, // Would be calculated in real scenario
-                    Score = (c.AverageRating ?? 0) * 100 + c.TotalJobsCompleted * 10
-                })
-                .ToListAsync();
+            // Create and handle query via MediatR
+            var query = new GetContractorRecommendationsQuery(jobId, dispatcherId, contractorListOnly);
+            var response = await _mediator.Send(query);
 
-            _logger.LogInformation(
-                "Retrieved {Count} contractor recommendations for dispatcher {UserId}, jobType {JobType}",
-                recommendedContractors.Count,
-                userId,
-                jobType);
+            _logger.LogInformation("Successfully retrieved {Count} recommendations for Job {JobId} by Dispatcher {DispatcherId}",
+                response.Recommendations.Count, jobId, dispatcherId);
 
-            return Ok(new
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error for Job {JobId}: {Message}", jobId, ex.Message);
+            return BadRequest(new
             {
-                contractors = recommendedContractors
+                error = new
+                {
+                    code = "INVALID_REQUEST",
+                    message = ex.Message,
+                    statusCode = 400
+                }
             });
         }
-        catch (ArgumentException exception)
+        catch (NotFoundException ex)
         {
-            _logger.LogWarning(exception, "Missing user claims");
-            throw new UnauthorizedException(exception.Message);
+            _logger.LogWarning(ex, "Job or resource not found: {Message}", ex.Message);
+            return NotFound(new
+            {
+                error = new
+                {
+                    code = "NOT_FOUND",
+                    message = ex.Message,
+                    statusCode = 404
+                }
+            });
         }
-        catch (ValidationException)
+        catch (UnauthorizedException ex)
         {
-            throw;
+            _logger.LogWarning(ex, "Authorization failed: {Message}", ex.Message);
+            return Unauthorized(new
+            {
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = ex.Message,
+                    statusCode = 401
+                }
+            });
         }
-        catch (Exception exception)
+        catch (Exception ex)
         {
-            _logger.LogError(exception, "Error retrieving recommendations");
-            throw;
+            _logger.LogError(ex, "Unexpected error retrieving recommendations for Job {JobId}", jobId);
+            return StatusCode(500, new
+            {
+                error = new
+                {
+                    code = "RECOMMENDATIONS_ERROR",
+                    message = "Unable to retrieve contractor recommendations",
+                    statusCode = 500
+                }
+            });
         }
     }
 }

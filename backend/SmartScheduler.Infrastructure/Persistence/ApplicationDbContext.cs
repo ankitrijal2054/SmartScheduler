@@ -122,6 +122,16 @@ public class ApplicationDbContext : DbContext
             // Composite index for recommendation queries
             entity.HasIndex(e => new { e.IsActive, e.TradeType })
                 .HasDatabaseName("IX_Contractors_IsActive_TradeType");
+
+            // Single index on IsActive for Story 2.4 recommendations filtering
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("IX_Contractors_IsActive");
+
+            // Spatial-like indexes for distance calculations (Story 2.4)
+            entity.HasIndex(e => e.Latitude)
+                .HasDatabaseName("IX_Contractors_Latitude");
+            entity.HasIndex(e => e.Longitude)
+                .HasDatabaseName("IX_Contractors_Longitude");
         });
 
         // Customer entity configuration
@@ -268,6 +278,14 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
+
+            // Composite index for dispatcher contractor list queries (Story 2.4)
+            entity.HasIndex(e => new { e.DispatcherId, e.ContractorId })
+                .HasDatabaseName("IX_DispatcherContractorLists_DispatcherId_ContractorId");
+
+            // Index on DispatcherId for filtering contractors by dispatcher
+            entity.HasIndex(e => e.DispatcherId)
+                .HasDatabaseName("IX_DispatcherContractorLists_DispatcherId");
         });
 
         // RefreshToken entity configuration

@@ -54,3 +54,12 @@ public class ConflictException : DomainException
     public ConflictException(string message) : base(message) { }
 }
 
+/// <summary>
+/// Thrown when a contractor is not found.
+/// Maps to HTTP 404 Not Found.
+/// </summary>
+public class ContractorNotFoundException : NotFoundException
+{
+    public ContractorNotFoundException(string message) : base(message) { }
+}
+
