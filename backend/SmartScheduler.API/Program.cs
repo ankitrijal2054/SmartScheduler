@@ -48,7 +48,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+// Configure Authorization Policies for RBAC
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("DispatcherOnly", policy =>
+        policy.RequireRole("Dispatcher"));
+    
+    options.AddPolicy("CustomerOnly", policy =>
+        policy.RequireRole("Customer"));
+    
+    options.AddPolicy("ContractorOnly", policy =>
+        policy.RequireRole("Contractor"));
+    
+    options.AddPolicy("AnyAuthenticatedUser", policy =>
+        policy.RequireAuthenticatedUser());
+});
 
 // Register layer services
 builder.Services.AddDomainServices();

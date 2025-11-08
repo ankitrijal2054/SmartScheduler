@@ -21,6 +21,9 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHashingService, PasswordHashingService>();
 
+        // Register authorization services
+        services.AddScoped<IAuthorizationService, AuthorizationService>();
+
         // Future: Register AutoMapper for DTOs
         // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);
 
