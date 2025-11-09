@@ -22,37 +22,70 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Allow string enum values to be deserialized (e.g., "Dispatcher" instead of 0)
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
-// Load configuration with fallbacks
+// Configure CORS for local development and production
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:3000",      // Local development
+            "http://localhost:5173",      // Vite default
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173"
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials();
+    });
+});
+
+// Load configuration with fallbacks (environment variables take precedence, then appsettings)
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
     ?? builder.Configuration["Jwt__SecretKey"]
     ?? throw new InvalidOperationException("JWT secret key is not configured");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] 
     ?? builder.Configuration["Jwt__Issuer"]
-    ?? throw new InvalidOperationException("JWT issuer is not configured");
+    ?? "SmartScheduler"; // Default for development
 var jwtAudience = builder.Configuration["Jwt:Audience"] 
     ?? builder.Configuration["Jwt__Audience"]
-    ?? throw new InvalidOperationException("JWT audience is not configured");
+    ?? "SmartSchedulerAPI"; // Default for development
 
-// Build database connection string from environment variables
-var dbHost = builder.Configuration["DATABASE_HOST"] 
-    ?? throw new InvalidOperationException("DATABASE_HOST is not configured");
-var dbPort = builder.Configuration["DATABASE_PORT"] ?? "5432";
-var dbName = builder.Configuration["DATABASE_NAME"] ?? "smartscheduler";
-var dbUser = builder.Configuration["DATABASE_USER"] 
-    ?? throw new InvalidOperationException("DATABASE_USER is not configured");
-var dbPassword = builder.Configuration["DATABASE_PASSWORD"] 
-    ?? throw new InvalidOperationException("DATABASE_PASSWORD is not configured");
-
-// Build connection string - SSL Mode=Prefer (tries SSL, falls back to unencrypted for portfolio app)
-var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Prefer;Trust Server Certificate=true;";
+// Build database connection string from environment variables or appsettings
+string connectionString;
+if (builder.Environment.IsDevelopment())
+{
+    // In development, prefer appsettings.Development.json connection string
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection is not configured in appsettings.Development.json");
+}
+else
+{
+    // In production, use environment variables
+    var dbHost = builder.Configuration["DATABASE_HOST"] 
+        ?? throw new InvalidOperationException("DATABASE_HOST is not configured");
+    var dbPort = builder.Configuration["DATABASE_PORT"] ?? "5432";
+    var dbName = builder.Configuration["DATABASE_NAME"] ?? "smartscheduler";
+    var dbUser = builder.Configuration["DATABASE_USER"] 
+        ?? throw new InvalidOperationException("DATABASE_USER is not configured");
+    var dbPassword = builder.Configuration["DATABASE_PASSWORD"] 
+        ?? throw new InvalidOperationException("DATABASE_PASSWORD is not configured");
+    
+    // Build connection string - SSL Mode=Prefer (tries SSL, falls back to unencrypted for portfolio app)
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Prefer;Trust Server Certificate=true;";
+}
 
 // Update connection string in configuration
-builder.Configuration.AddInMemoryCollection(new Dictionary<string, string>
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     { "ConnectionStrings:DefaultConnection", connectionString }
 });
@@ -143,15 +176,19 @@ if (app.Environment.IsDevelopment())
 // Add global exception handling middleware (must be first)
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Health check endpoint (before auth middleware so it's publicly accessible)
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
+    .WithName("HealthCheck")
+    .WithDescription("Health check endpoint")
+    .AllowAnonymous();
+
+// Enable CORS (must be before UseAuthentication)
+app.UseCors("AllowFrontend");
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/notifications");
-
-// Health check endpoint
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
-    .WithName("HealthCheck")
-    .WithDescription("Health check endpoint");
 
 app.Run();

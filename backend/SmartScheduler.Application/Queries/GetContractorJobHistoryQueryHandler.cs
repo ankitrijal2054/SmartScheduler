@@ -1,8 +1,6 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Repositories;
-using SmartScheduler.Infrastructure.Persistence;
 
 namespace SmartScheduler.Application.Queries;
 
@@ -14,14 +12,11 @@ namespace SmartScheduler.Application.Queries;
 public class GetContractorJobHistoryQueryHandler : IRequestHandler<GetContractorJobHistoryQuery, JobHistoryResponseDto>
 {
     private readonly IAssignmentRepository _assignmentRepository;
-    private readonly ApplicationDbContext _dbContext;
 
     public GetContractorJobHistoryQueryHandler(
-        IAssignmentRepository assignmentRepository,
-        ApplicationDbContext dbContext)
+        IAssignmentRepository assignmentRepository)
     {
         _assignmentRepository = assignmentRepository ?? throw new ArgumentNullException(nameof(assignmentRepository));
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     /// <summary>
@@ -51,22 +46,17 @@ public class GetContractorJobHistoryQueryHandler : IRequestHandler<GetContractor
 
         foreach (var assignment in assignments)
         {
-            // Get review for this job if it exists
-            var review = await _dbContext.Reviews
-                .Include(r => r.Customer)
-                .FirstOrDefaultAsync(r => r.JobId == assignment.JobId, cancellationToken);
-
             jobHistoryDtos.Add(new JobHistoryItemDto
             {
                 Id = assignment.Id,
                 JobId = assignment.JobId,
-                JobType = assignment.Job?.Type.ToString() ?? "Unknown",
-                Location = assignment.Job?.Location ?? "Unknown",
-                ScheduledDateTime = assignment.Job?.DesiredDateTime ?? DateTime.MinValue,
+                JobType = "Unknown",
+                Location = "Unknown",
+                ScheduledDateTime = assignment.CreatedAt,
                 Status = assignment.Status.ToString(),
-                CustomerName = assignment.Job?.Customer?.Name ?? "Unknown Customer",
-                CustomerRating = review?.Rating,
-                CustomerReviewText = review?.Comment,
+                CustomerName = "Unknown Customer",
+                CustomerRating = null,
+                CustomerReviewText = null,
                 AcceptedAt = assignment.AcceptedAt,
                 CompletedAt = assignment.CompletedAt
             });

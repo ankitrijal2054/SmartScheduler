@@ -105,3 +105,7 @@ appsettings.Production.json
 .vscode/settings.json
 DEPLOYMENT.md
 .vite
+LOCAL-SETUP.md
+setup-local-db.sh
+.gitignore
+setup-local-env.sh

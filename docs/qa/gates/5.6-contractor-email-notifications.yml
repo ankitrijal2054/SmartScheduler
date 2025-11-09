@@ -116,3 +116,4 @@ notes:
   - "All handlers auto-registered via MediatR discovery (no manual registration required)"
   - "Email templates tested for mobile rendering (375px viewport)"
   - "Graceful failure: contractor still receives real-time SignalR notification if email fails"
+

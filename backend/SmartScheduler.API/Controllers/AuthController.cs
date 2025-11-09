@@ -5,6 +5,7 @@ using SmartScheduler.Application.DTOs.Auth;
 using SmartScheduler.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using SmartScheduler.Domain.Entities;
+using SmartScheduler.Domain.Enums;
 
 namespace SmartScheduler.API.Controllers;
 
@@ -132,6 +133,109 @@ public class AuthController : ControllerBase
         _logger.LogInformation("Token refreshed successfully for user: {UserId}", refreshToken.UserId);
 
         return Ok(tokenResponse);
+    }
+
+    /// <summary>
+    /// Creates a new user account with email, password, and role.
+    /// </summary>
+    /// <param name="request">Signup credentials (email, password, role).</param>
+    /// <returns>201 Created with JWT and refresh token, or 400/409 if validation fails or email exists.</returns>
+    [HttpPost("signup")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Signup([FromBody] SignupRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // Check if email already exists (case-insensitive)
+        var existingUser = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower());
+
+        if (existingUser != null)
+        {
+            _logger.LogWarning("Signup attempt with duplicate email: {Email}", request.Email);
+            return Conflict(new { error = new { code = "EMAIL_EXISTS", message = "An account with this email already exists", statusCode = 409 } });
+        }
+
+        // Hash password
+        var passwordHash = _passwordHashingService.HashPassword(request.Password);
+
+        // Create new user
+        var user = new User
+        {
+            Email = request.Email.ToLower(),
+            PasswordHash = passwordHash,
+            Role = request.Role,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync();
+
+        // Create role-specific entity if needed
+        try
+        {
+            if (request.Role == SmartScheduler.Domain.Enums.UserRole.Contractor)
+            {
+                var contractor = new Contractor
+                {
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    // Minimal profile - user can update later
+                    Name = "",
+                    PhoneNumber = "",
+                    Location = "",
+                    Latitude = 0,
+                    Longitude = 0,
+                    TradeType = SmartScheduler.Domain.Enums.TradeType.Plumbing, // Default - user can change
+                    WorkingHoursStart = TimeSpan.Zero,
+                    WorkingHoursEnd = TimeSpan.Zero,
+                    IsActive = true
+                };
+                _dbContext.Contractors.Add(contractor);
+            }
+            else if (request.Role == SmartScheduler.Domain.Enums.UserRole.Customer)
+            {
+                var customer = new Customer
+                {
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    // Minimal profile - user can update later
+                    Name = "",
+                    PhoneNumber = "",
+                    Location = ""
+                };
+                _dbContext.Customers.Add(customer);
+            }
+            // Dispatcher role doesn't require a specific entity, just User record
+
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating role-specific entity for user: {UserId}", user.Id);
+            // Continue - user was created even if role entity creation failed
+        }
+
+        // Generate JWT and refresh token
+        var tokenResponse = _jwtTokenService.GenerateToken(user);
+
+        // Save refresh token to database
+        var refreshToken = new RefreshToken
+        {
+            UserId = user.Id,
+            Token = tokenResponse.RefreshToken!,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.RefreshTokens.Add(refreshToken);
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("User signed up successfully: {UserId} with role {Role}", user.Id, user.Role);
+
+        return CreatedAtAction(nameof(Signup), tokenResponse);
     }
 
     /// <summary>
