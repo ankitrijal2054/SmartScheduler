@@ -10,6 +10,12 @@ export interface SignupRequest {
   email: string;
   password: string;
   role: "Dispatcher" | "Customer" | "Contractor";
+  name: string;
+  phoneNumber?: string;
+  location?: string;
+  tradeType?: "Flooring" | "HVAC" | "Plumbing" | "Electrical" | "Other";
+  workingHoursStart?: string; // Format: "HH:mm" (e.g., "09:00")
+  workingHoursEnd?: string; // Format: "HH:mm" (e.g., "17:00")
 }
 
 export interface TokenResponse {
@@ -53,17 +59,13 @@ export class AuthService {
   }
 
   /**
-   * Sign up with email, password, and role
+   * Sign up with email, password, role, and profile information
    */
-  async signup(
-    email: string,
-    password: string,
-    role: "Dispatcher" | "Customer" | "Contractor"
-  ): Promise<TokenResponse> {
+  async signup(request: SignupRequest): Promise<TokenResponse> {
     try {
       const response = await axios.post<TokenResponse>(
         `${this.authEndpoint}/signup`,
-        { email, password, role },
+        request,
         { withCredentials: true }
       );
       return response.data;
@@ -197,4 +199,3 @@ export class AuthService {
 
 // Export singleton instance
 export const authService = new AuthService();
-

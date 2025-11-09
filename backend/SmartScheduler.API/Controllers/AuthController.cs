@@ -20,17 +20,20 @@ public class AuthController : ControllerBase
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<AuthController> _logger;
+    private readonly IGeocodingService _geocodingService;
 
     public AuthController(
         IJwtTokenService jwtTokenService,
         IPasswordHashingService passwordHashingService,
         ApplicationDbContext dbContext,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IGeocodingService geocodingService)
     {
         _jwtTokenService = jwtTokenService ?? throw new ArgumentNullException(nameof(jwtTokenService));
         _passwordHashingService = passwordHashingService ?? throw new ArgumentNullException(nameof(passwordHashingService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _geocodingService = geocodingService ?? throw new ArgumentNullException(nameof(geocodingService));
     }
 
     /// <summary>
@@ -136,9 +139,9 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Creates a new user account with email, password, and role.
+    /// Creates a new user account with email, password, role, and profile information.
     /// </summary>
-    /// <param name="request">Signup credentials (email, password, role).</param>
+    /// <param name="request">Signup credentials including profile data.</param>
     /// <returns>201 Created with JWT and refresh token, or 400/409 if validation fails or email exists.</returns>
     [HttpPost("signup")]
     [AllowAnonymous]
@@ -146,6 +149,23 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+
+        // Validate role-specific requirements
+        if (request.Role == UserRole.Contractor)
+        {
+            if (string.IsNullOrWhiteSpace(request.Location))
+            {
+                return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Location is required for contractors", statusCode = 400 } });
+            }
+            if (!request.TradeType.HasValue)
+            {
+                return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "TradeType is required for contractors", statusCode = 400 } });
+            }
+            if (string.IsNullOrWhiteSpace(request.WorkingHoursStart) || string.IsNullOrWhiteSpace(request.WorkingHoursEnd))
+            {
+                return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Working hours are required for contractors", statusCode = 400 } });
+            }
+        }
 
         // Check if email already exists (case-insensitive)
         var existingUser = await _dbContext.Users
@@ -177,42 +197,105 @@ public class AuthController : ControllerBase
             _dbContext.Users.Add(user);
             await _dbContext.SaveChangesAsync();
 
-            // Create role-specific entity (mandatory for Customer and Contractor roles)
-            if (request.Role == SmartScheduler.Domain.Enums.UserRole.Contractor)
+            // Create role-specific entity with profile data
+            if (request.Role == UserRole.Contractor)
             {
+                // Parse working hours
+                if (!TimeSpan.TryParse(request.WorkingHoursStart, out var startTime))
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Invalid WorkingHoursStart format. Use HH:mm", statusCode = 400 } });
+                }
+                if (!TimeSpan.TryParse(request.WorkingHoursEnd, out var endTime))
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Invalid WorkingHoursEnd format. Use HH:mm", statusCode = 400 } });
+                }
+                if (endTime <= startTime)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "WorkingHoursEnd must be after WorkingHoursStart", statusCode = 400 } });
+                }
+
+                // Geocode location with error handling
+                decimal latitude = 0;
+                decimal longitude = 0;
+                try
+                {
+                    var (lat, lon) = await _geocodingService.GeocodeAddressAsync(request.Location!);
+                    latitude = (decimal)lat;
+                    longitude = (decimal)lon;
+                    _logger.LogInformation("Geocoded location for contractor: {Location} -> ({Latitude}, {Longitude})", 
+                        request.Location, latitude, longitude);
+                }
+                catch (Exception geocodeEx)
+                {
+                    _logger.LogWarning(geocodeEx, "Geocoding failed for location: {Location}. Using default coordinates (0, 0)", request.Location);
+                    // Continue with default coordinates - don't fail signup
+                }
+
+                // Ensure PhoneNumber is not empty (required field)
+                var phoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? "000-000-0000" : request.PhoneNumber.Trim();
+
                 var contractor = new Contractor
                 {
                     UserId = user.Id,
                     CreatedAt = DateTime.UtcNow,
-                    // Minimal profile - user can update later
-                    Name = "",
-                    PhoneNumber = "",
-                    Location = "",
-                    Latitude = 0,
-                    Longitude = 0,
-                    TradeType = SmartScheduler.Domain.Enums.TradeType.Plumbing, // Default - user can change
-                    WorkingHoursStart = TimeSpan.Zero,
-                    WorkingHoursEnd = TimeSpan.Zero,
-                    IsActive = true
+                    Name = request.Name.Trim(),
+                    PhoneNumber = phoneNumber,
+                    Location = request.Location!.Trim(),
+                    Latitude = latitude,
+                    Longitude = longitude,
+                    TradeType = request.TradeType!.Value,
+                    WorkingHoursStart = startTime,
+                    WorkingHoursEnd = endTime,
+                    IsActive = true,
+                    ReviewCount = 0,
+                    TotalJobsCompleted = 0
                 };
                 _dbContext.Contractors.Add(contractor);
+                _logger.LogInformation("Contractor profile created: UserId={UserId}, Name={Name}, TradeType={TradeType}, Location={Location}, PhoneNumber={PhoneNumber}", 
+                    user.Id, contractor.Name, contractor.TradeType, contractor.Location, contractor.PhoneNumber);
             }
-            else if (request.Role == SmartScheduler.Domain.Enums.UserRole.Customer)
+            else if (request.Role == UserRole.Customer)
             {
+                // Ensure required fields are not empty
+                var customerPhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? "000-000-0000" : request.PhoneNumber.Trim();
+                var customerLocation = string.IsNullOrWhiteSpace(request.Location) ? "Not provided" : request.Location.Trim();
+
                 var customer = new Customer
                 {
                     UserId = user.Id,
                     CreatedAt = DateTime.UtcNow,
-                    // Minimal profile - user can update later
-                    Name = "",
-                    PhoneNumber = "",
-                    Location = ""
+                    Name = request.Name.Trim(),
+                    PhoneNumber = customerPhoneNumber,
+                    Location = customerLocation
                 };
                 _dbContext.Customers.Add(customer);
+                _logger.LogInformation("Customer profile created: UserId={UserId}, Name={Name}, PhoneNumber={PhoneNumber}, Location={Location}", 
+                    user.Id, customer.Name, customer.PhoneNumber, customer.Location);
             }
             // Dispatcher role doesn't require a specific entity, just User record
+            else if (request.Role == UserRole.Dispatcher)
+            {
+                _logger.LogInformation("Dispatcher account created: Name={Name}", request.Name);
+            }
 
             await _dbContext.SaveChangesAsync();
+            
+            // Verify contractor was saved
+            if (request.Role == UserRole.Contractor)
+            {
+                var savedContractor = await _dbContext.Contractors.FirstOrDefaultAsync(c => c.UserId == user.Id);
+                if (savedContractor == null)
+                {
+                    _logger.LogError("Contractor profile was not saved after SaveChangesAsync. UserId={UserId}", user.Id);
+                    await transaction.RollbackAsync();
+                    return StatusCode(500, new { error = new { code = "SIGNUP_FAILED", message = "Failed to create contractor profile. Please try again.", statusCode = 500 } });
+                }
+                _logger.LogInformation("Contractor profile verified in database: ContractorId={ContractorId}, UserId={UserId}", savedContractor.Id, user.Id);
+            }
+            
             await transaction.CommitAsync();
 
             // Generate JWT and refresh token
@@ -234,10 +317,26 @@ public class AuthController : ControllerBase
 
             return CreatedAtAction(nameof(Signup), tokenResponse);
         }
+        catch (DbUpdateException dbEx)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(dbEx, "Database error during signup for email: {Email}. InnerException: {InnerException}", 
+                request.Email, dbEx.InnerException?.Message);
+            
+            // Check for specific constraint violations
+            if (dbEx.InnerException?.Message.Contains("duplicate") == true || 
+                dbEx.InnerException?.Message.Contains("unique") == true)
+            {
+                return Conflict(new { error = new { code = "DUPLICATE_ENTRY", message = "A record with this information already exists", statusCode = 409 } });
+            }
+            
+            return StatusCode(500, new { error = new { code = "SIGNUP_FAILED", message = "Database error occurred. Please try again.", statusCode = 500 } });
+        }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(ex, "Error during signup for email: {Email}", request.Email);
+            _logger.LogError(ex, "Error during signup for email: {Email}. ExceptionType: {ExceptionType}, Message: {Message}", 
+                request.Email, ex.GetType().Name, ex.Message);
             return StatusCode(500, new { error = new { code = "SIGNUP_FAILED", message = "Failed to create account. Please try again.", statusCode = 500 } });
         }
     }

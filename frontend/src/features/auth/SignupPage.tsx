@@ -2,10 +2,11 @@ import React, { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuthContext";
 import { UserRole } from "@/types/Auth";
+import { SignupRequest } from "@/services/authService";
 
 /**
  * Sign-Up Page Component
- * Allows new users to create an account with a role
+ * Allows new users to create an account with a role and profile information
  */
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +17,18 @@ export const SignupPage: React.FC = () => {
     password: "",
     confirmPassword: "",
     role: "" as UserRole | "",
+    name: "",
+    phoneNumber: "",
+    location: "",
+    tradeType: "" as
+      | "Flooring"
+      | "HVAC"
+      | "Plumbing"
+      | "Electrical"
+      | "Other"
+      | "",
+    workingHoursStart: "",
+    workingHoursEnd: "",
     termsAccepted: false,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -36,6 +49,14 @@ export const SignupPage: React.FC = () => {
       label: "Contractor",
       description: "Accept jobs and build your rating",
     },
+  ];
+
+  const tradeTypeOptions = [
+    { value: "Flooring", label: "Flooring" },
+    { value: "HVAC", label: "HVAC" },
+    { value: "Plumbing", label: "Plumbing" },
+    { value: "Electrical", label: "Electrical" },
+    { value: "Other", label: "Other" },
   ];
 
   const passwordStrength = useMemo(() => {
@@ -113,6 +134,37 @@ export const SignupPage: React.FC = () => {
       errors.role = "Please select a role";
     }
 
+    if (!formData.name.trim()) {
+      errors.name = "Name is required";
+    } else if (formData.name.trim().length < 2) {
+      errors.name = "Name must be at least 2 characters";
+    }
+
+    // Contractor-specific validations
+    if (formData.role === "Contractor") {
+      if (!formData.location.trim()) {
+        errors.location = "Location is required for contractors";
+      }
+      if (!formData.tradeType) {
+        errors.tradeType = "Trade type is required";
+      }
+      if (!formData.workingHoursStart) {
+        errors.workingHoursStart = "Working hours start time is required";
+      }
+      if (!formData.workingHoursEnd) {
+        errors.workingHoursEnd = "Working hours end time is required";
+      }
+      if (formData.workingHoursStart && formData.workingHoursEnd) {
+        const start = formData.workingHoursStart.split(":").map(Number);
+        const end = formData.workingHoursEnd.split(":").map(Number);
+        const startTime = start[0] * 60 + start[1];
+        const endTime = end[0] * 60 + end[1];
+        if (endTime <= startTime) {
+          errors.workingHoursEnd = "End time must be after start time";
+        }
+      }
+    }
+
     if (!formData.termsAccepted) {
       errors.termsAccepted = "You must agree to the terms of service";
     }
@@ -127,17 +179,27 @@ export const SignupPage: React.FC = () => {
     if (!validateForm()) return;
 
     try {
-      await signup(
-        formData.email,
-        formData.password,
-        formData.role as UserRole
-      );
+      const signupRequest: SignupRequest = {
+        email: formData.email,
+        password: formData.password,
+        role: formData.role as "Dispatcher" | "Customer" | "Contractor",
+        name: formData.name.trim(),
+        phoneNumber: formData.phoneNumber.trim() || undefined,
+        location: formData.location.trim() || undefined,
+        tradeType: formData.tradeType || undefined,
+        workingHoursStart: formData.workingHoursStart || undefined,
+        workingHoursEnd: formData.workingHoursEnd || undefined,
+      };
+
+      await signup(signupRequest);
       // Signup successful - redirect to dashboard (handled by auth context)
       navigate("/");
     } catch (err) {
       console.error("Signup failed:", err);
     }
   };
+
+  const isContractor = formData.role === "Contractor";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4 py-8">
@@ -266,6 +328,65 @@ export const SignupPage: React.FC = () => {
               )}
             </div>
 
+            {/* Name Field */}
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                disabled={isLoading}
+                placeholder="John Doe"
+                className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  formErrors.name
+                    ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                }`}
+              />
+              {formErrors.name && (
+                <p className="text-red-600 text-xs mt-1">{formErrors.name}</p>
+              )}
+            </div>
+
+            {/* Phone Number Field */}
+            <div>
+              <label
+                htmlFor="phoneNumber"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Phone Number{" "}
+                {!isContractor && (
+                  <span className="text-gray-400">(Optional)</span>
+                )}
+              </label>
+              <input
+                type="tel"
+                id="phoneNumber"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                disabled={isLoading}
+                placeholder="+1 (555) 123-4567"
+                className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  formErrors.phoneNumber
+                    ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                }`}
+              />
+              {formErrors.phoneNumber && (
+                <p className="text-red-600 text-xs mt-1">
+                  {formErrors.phoneNumber}
+                </p>
+              )}
+            </div>
+
             {/* Role Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -305,6 +426,161 @@ export const SignupPage: React.FC = () => {
                 <p className="text-red-600 text-xs mt-1">{formErrors.role}</p>
               )}
             </div>
+
+            {/* Contractor-specific fields */}
+            {isContractor && (
+              <>
+                {/* Location Field */}
+                <div>
+                  <label
+                    htmlFor="location"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Location Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                    placeholder="123 Main St, City, State ZIP"
+                    className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                      formErrors.location
+                        ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    }`}
+                  />
+                  {formErrors.location && (
+                    <p className="text-red-600 text-xs mt-1">
+                      {formErrors.location}
+                    </p>
+                  )}
+                </div>
+
+                {/* Trade Type Field */}
+                <div>
+                  <label
+                    htmlFor="tradeType"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Trade Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="tradeType"
+                    name="tradeType"
+                    value={formData.tradeType}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                    className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                      formErrors.tradeType
+                        ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    }`}
+                  >
+                    <option value="">Select a trade type</option>
+                    {tradeTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.tradeType && (
+                    <p className="text-red-600 text-xs mt-1">
+                      {formErrors.tradeType}
+                    </p>
+                  )}
+                </div>
+
+                {/* Working Hours */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="workingHoursStart"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Work Start Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      id="workingHoursStart"
+                      name="workingHoursStart"
+                      value={formData.workingHoursStart}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                        formErrors.workingHoursStart
+                          ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                          : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      }`}
+                    />
+                    {formErrors.workingHoursStart && (
+                      <p className="text-red-600 text-xs mt-1">
+                        {formErrors.workingHoursStart}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="workingHoursEnd"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Work End Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      id="workingHoursEnd"
+                      name="workingHoursEnd"
+                      value={formData.workingHoursEnd}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                        formErrors.workingHoursEnd
+                          ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                          : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      }`}
+                    />
+                    {formErrors.workingHoursEnd && (
+                      <p className="text-red-600 text-xs mt-1">
+                        {formErrors.workingHoursEnd}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Location Field for Customer/Dispatcher (optional) */}
+            {!isContractor && formData.role && (
+              <div>
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Location <span className="text-gray-400">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  placeholder="123 Main St, City, State ZIP"
+                  className={`w-full px-4 py-2 border rounded-lg outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                    formErrors.location
+                      ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  }`}
+                />
+                {formErrors.location && (
+                  <p className="text-red-600 text-xs mt-1">
+                    {formErrors.location}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Terms Checkbox */}
             <div className="flex items-start gap-3">
@@ -372,4 +648,3 @@ export const SignupPage: React.FC = () => {
     </div>
   );
 };
-

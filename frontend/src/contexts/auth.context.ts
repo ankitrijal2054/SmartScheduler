@@ -5,6 +5,7 @@
 
 import { createContext } from "react";
 import { User, UserRole } from "@/types/Auth";
+import { SignupRequest } from "@/services/authService";
 
 export interface AuthContextType {
   user: User | null;
@@ -13,7 +14,7 @@ export interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, role: UserRole) => Promise<void>;
+  signup: (request: SignupRequest) => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
 }

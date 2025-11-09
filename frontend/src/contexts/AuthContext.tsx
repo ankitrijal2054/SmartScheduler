@@ -6,7 +6,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { User, UserRole } from "@/types/Auth";
 import { config } from "@/utils/config";
-import { authService } from "@/services/authService";
+import { authService, SignupRequest } from "@/services/authService";
 import { AuthContext, AuthContextType } from "./auth.context";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -90,50 +90,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const signup = useCallback(
-    async (email: string, password: string, role: UserRole) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const tokenResponse = await authService.signup(
-          email,
-          password,
-          role as "Dispatcher" | "Customer" | "Contractor"
-        );
-        setToken(tokenResponse.accessToken);
+  const signup = useCallback(async (request: SignupRequest) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const tokenResponse = await authService.signup(request);
+      setToken(tokenResponse.accessToken);
 
-        // Store tokens
+      // Store tokens
+      localStorage.setItem(
+        config.auth.jwtStorageKey,
+        tokenResponse.accessToken
+      );
+      if (tokenResponse.refreshToken) {
         localStorage.setItem(
-          config.auth.jwtStorageKey,
-          tokenResponse.accessToken
+          config.auth.refreshTokenStorageKey,
+          tokenResponse.refreshToken
         );
-        if (tokenResponse.refreshToken) {
-          localStorage.setItem(
-            config.auth.refreshTokenStorageKey,
-            tokenResponse.refreshToken
-          );
-        }
-
-        // Extract user info from token
-        const decodedRole = authService.extractRole(tokenResponse.accessToken);
-        const decoded = authService.decodeToken(tokenResponse.accessToken);
-        if (decodedRole && decoded && decoded.email) {
-          setUser({
-            id: (decoded as any).sub || (decoded as any).jti || "",
-            email: decoded.email,
-            role: decodedRole as UserRole,
-          });
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Signup failed";
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
       }
-    },
-    []
-  );
+
+      // Extract user info from token
+      const decodedRole = authService.extractRole(tokenResponse.accessToken);
+      const decoded = authService.decodeToken(tokenResponse.accessToken);
+      if (decodedRole && decoded && decoded.email) {
+        setUser({
+          id: (decoded as any).sub || (decoded as any).jti || "",
+          email: decoded.email,
+          role: decodedRole as UserRole,
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Signup failed";
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     try {
