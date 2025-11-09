@@ -102,3 +102,22 @@ export type NotificationMessageType =
   | typeof REASSIGNMENT_NOTIFICATIONS.OLD_CONTRACTOR_REASSIGNMENT
   | typeof REASSIGNMENT_NOTIFICATIONS.NEW_CONTRACTOR_ASSIGNMENT
   | typeof REASSIGNMENT_NOTIFICATIONS.CUSTOMER_REASSIGNMENT_NOTIFICATION;
+
+/**
+ * Contractor Notification Types (Story 5.1)
+ * Used for contractor portal real-time notifications
+ */
+export type NotificationType =
+  | "NewJobAssigned"
+  | "JobReassigned"
+  | "JobCancelled"
+  | "JobStatusUpdated";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  jobId?: string;
+  createdAt: string; // ISO 8601 datetime
+  read?: boolean;
+}

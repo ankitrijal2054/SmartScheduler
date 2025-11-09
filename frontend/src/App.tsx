@@ -10,15 +10,18 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Dashboard } from "@/features/dispatcher/Dashboard";
 import { JobSubmissionPage } from "@/features/customer/JobSubmissionPage";
 import { JobTrackingPage } from "@/features/customer/JobTracking/JobTrackingPage";
+import { contractorRoutes } from "@/features/contractor/ContractorRoutes";
 
 function App() {
   return (
     <Router>
       <AuthProvider>
+        <NotificationProvider>
         <Routes>
           {/* Dispatcher Dashboard */}
           <Route
@@ -50,6 +53,9 @@ function App() {
             }
           />
 
+          {/* Contractor Portal (Story 5.1+) */}
+          {contractorRoutes}
+
           {/* Redirect root to dashboard */}
           <Route
             path="/"
@@ -64,6 +70,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </NotificationProvider>
       </AuthProvider>
     </Router>
   );
