@@ -9,6 +9,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -26,30 +27,45 @@ import { useAuth } from "@/hooks/useAuthContext";
  */
 const RootRoute: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const navigate = useNavigate();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
+  // Use useEffect to handle navigation to prevent infinite loops
+  React.useEffect(() => {
+    if (isLoading) {
+      return; // Wait for auth state to load
+    }
+
+    if (!isAuthenticated || !user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    // Redirect to role-specific dashboard
+    switch (user.role) {
+      case "Dispatcher":
+        navigate("/dispatcher/dashboard", { replace: true });
+        break;
+      case "Customer":
+        navigate("/customer/submit-job", { replace: true });
+        break;
+      case "Contractor":
+        navigate("/contractor/assignments", { replace: true });
+        break;
+      default:
+        navigate("/login", { replace: true });
+        break;
+    }
+  }, [isAuthenticated, isLoading, user, navigate]);
+
+  // Show loading state while redirecting
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="text-center">
+        <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-600">Loading...</p>
       </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Redirect to role-specific dashboard
-  switch (user?.role) {
-    case "Dispatcher":
-      return <Navigate to="/dispatcher/dashboard" replace />;
-    case "Customer":
-      return <Navigate to="/customer/jobs" replace />;
-    case "Contractor":
-      return <Navigate to="/contractor/assignments" replace />;
-    default:
-      return <Navigate to="/login" replace />;
-  }
+    </div>
+  );
 };
 
 /**
