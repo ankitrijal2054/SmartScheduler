@@ -74,3 +74,26 @@ export interface RecommendationsState {
   error: string | null;
   sortBy: SortField;
 }
+
+/**
+ * Contractor represents an available contractor (for list management)
+ */
+export interface Contractor {
+  id: string;
+  name: string;
+  rating: number | null; // Average rating (null if no reviews)
+  reviewCount: number;
+  location: string;
+  tradeType: TradeType;
+  isActive: boolean;
+  inDispatcherList?: boolean; // Computed: whether contractor is in current dispatcher's list
+}
+
+/**
+ * Paginated contractors response
+ */
+export interface PaginatedContractorsResponse {
+  contractors: Contractor[];
+  total: number;
+  hasMore: boolean;
+}

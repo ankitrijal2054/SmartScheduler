@@ -9,6 +9,8 @@ import { PaginatedJobsResponse, JobsQueryParams } from "@/types/Job";
 import {
   RecommendationRequest,
   RecommendationResponse,
+  Contractor,
+  PaginatedContractorsResponse,
 } from "@/types/Contractor";
 import {
   AssignmentRequest,
@@ -170,6 +172,115 @@ class DispatcherService {
         throw new Error("Reassignment request cancelled");
       }
       throw this.handleReassignmentError(error);
+    }
+  }
+
+  /**
+   * Get contractor list for current dispatcher
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Array of contractors in dispatcher's list
+   */
+  async getContractorList(cancelToken?: CancelToken): Promise<Contractor[]> {
+    try {
+      const response = await this.axiosInstance.get<Contractor[]>(
+        "/api/v1/dispatcher/contractor-list",
+        { cancelToken }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Contractor list request cancelled");
+        throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Add contractor to dispatcher's list
+   * @param contractorId Contractor identifier
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Updated contractor list
+   */
+  async addContractorToList(
+    contractorId: string,
+    cancelToken?: CancelToken
+  ): Promise<Contractor[]> {
+    try {
+      const response = await this.axiosInstance.post<Contractor[]>(
+        `/api/v1/dispatcher/contractor-list/${contractorId}`,
+        {},
+        { cancelToken }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Add contractor request cancelled");
+        throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Remove contractor from dispatcher's list
+   * @param contractorId Contractor identifier
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Updated contractor list
+   */
+  async removeContractorFromList(
+    contractorId: string,
+    cancelToken?: CancelToken
+  ): Promise<Contractor[]> {
+    try {
+      const response = await this.axiosInstance.delete<Contractor[]>(
+        `/api/v1/dispatcher/contractor-list/${contractorId}`,
+        { cancelToken }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Remove contractor request cancelled");
+        throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get all available contractors (for adding to list)
+   * @param limit Number of contractors to fetch (default 50, max 100)
+   * @param offset Pagination offset (default 0)
+   * @param search Optional search term to filter by name
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Paginated contractors response
+   */
+  async getAvailableContractors(
+    limit: number = 50,
+    offset: number = 0,
+    search?: string,
+    cancelToken?: CancelToken
+  ): Promise<PaginatedContractorsResponse> {
+    try {
+      const response =
+        await this.axiosInstance.get<PaginatedContractorsResponse>(
+          "/api/v1/dispatcher/contractors",
+          {
+            params: {
+              limit: Math.min(limit, 100),
+              offset,
+              ...(search && { search }),
+            },
+            cancelToken,
+          }
+        );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Available contractors request cancelled");
+        throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
     }
   }
 
