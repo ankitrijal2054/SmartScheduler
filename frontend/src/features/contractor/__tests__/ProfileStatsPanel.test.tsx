@@ -47,9 +47,18 @@ describe("ProfileStatsPanel", () => {
 
   it("displays job statistics correctly", () => {
     render(<ProfileStatsPanel profile={mockProfileWithRating} />);
+
+    // Check for total jobs assigned
     expect(screen.getByText("50")).toBeInTheDocument(); // Total jobs
-    expect(screen.getByText("38")).toBeInTheDocument(); // Accepted
-    expect(screen.getByText("76%")).toBeInTheDocument(); // Acceptance rate
+    expect(screen.getByText("Jobs Assigned")).toBeInTheDocument();
+
+    // Check for accepted jobs (should be in the "Accepted" section)
+    const acceptedSection = screen.getByText("Accepted").closest("div");
+    expect(acceptedSection).toHaveTextContent("38");
+
+    // Check for acceptance rate
+    expect(screen.getByText("76%")).toBeInTheDocument();
+    expect(screen.getByText("Acceptance Rate")).toBeInTheDocument();
   });
 
   it("displays earnings when available", () => {

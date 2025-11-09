@@ -18,7 +18,7 @@ namespace SmartScheduler.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/assignments")]
-[Authorize(Roles = "Contractor")]
+[Authorize(Roles = "Contractors")]
 public class AssignmentsController : ControllerBase
 {
     private readonly IMediator _mediator;

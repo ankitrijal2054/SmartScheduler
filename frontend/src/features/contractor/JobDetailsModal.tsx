@@ -293,44 +293,57 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
 
             {/* Status-based actions */}
             {jobDetails.status === "Accepted" && (
-              <button
-                onClick={handleMarkInProgress}
-                disabled={isTransitioning}
-                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
-                aria-label="Mark job as in-progress"
-              >
-                {isTransitioning ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    Starting...
-                  </>
-                ) : (
-                  "Mark In Progress"
-                )}
-              </button>
+              <>
+                <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white rounded-lg flex items-center justify-center border border-gray-300">
+                  <span className="font-semibold">Status:</span>
+                  <span className="ml-2">Accepted</span>
+                </div>
+                <button
+                  onClick={handleMarkInProgress}
+                  disabled={isTransitioning}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  aria-label="Mark job as in-progress"
+                >
+                  {isTransitioning ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      Starting...
+                    </>
+                  ) : (
+                    "Mark In Progress"
+                  )}
+                </button>
+              </>
             )}
 
             {jobDetails.status === "InProgress" && (
-              <button
-                onClick={handleMarkComplete}
-                disabled={isTransitioning}
-                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
-                aria-label="Mark job as completed"
-              >
-                {isTransitioning ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    Completing...
-                  </>
-                ) : (
-                  "Mark Complete"
-                )}
-              </button>
+              <>
+                <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white rounded-lg flex items-center justify-center border border-gray-300">
+                  <span className="font-semibold">Status:</span>
+                  <span className="ml-2">In Progress</span>
+                </div>
+                <button
+                  onClick={handleMarkComplete}
+                  disabled={isTransitioning}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  aria-label="Mark job as completed"
+                >
+                  {isTransitioning ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      Completing...
+                    </>
+                  ) : (
+                    "Mark Complete"
+                  )}
+                </button>
+              </>
             )}
 
             {jobDetails.status === "Completed" && (
               <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-green-50 rounded-lg flex items-center justify-center border border-green-200">
-                ✅ <span className="ml-2 font-semibold">Completed</span>
+                <span className="font-semibold">Status:</span>
+                <span className="ml-2">Completed</span>
               </div>
             )}
           </div>

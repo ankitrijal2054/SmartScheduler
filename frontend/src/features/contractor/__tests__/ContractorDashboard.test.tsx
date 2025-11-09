@@ -29,7 +29,12 @@ vi.mock("@/hooks/useContractorJobs", () => ({
 }));
 
 const mockAuthContext = {
-  user: { id: "1", email: "contractor@test.com", role: "Contractor" as const, name: "John Doe" },
+  user: {
+    id: "1",
+    email: "contractor@test.com",
+    role: "Contractor" as const,
+    name: "John Doe",
+  },
   token: "test-token",
   isAuthenticated: true,
   isLoading: false,
@@ -56,8 +61,10 @@ describe("ContractorDashboard", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("My Jobs")).toBeInTheDocument();
-      expect(screen.getByText("Connected to live updates")).toBeInTheDocument();
+      // There are multiple "Contractor Dashboard" texts (header and content), so use getAllByText
+      const dashboardTitles = screen.getAllByText("Contractor Dashboard");
+      expect(dashboardTitles.length).toBeGreaterThan(0);
+      expect(screen.getByText("Connected")).toBeInTheDocument();
     });
   });
 
@@ -96,6 +103,3 @@ describe("ContractorDashboard", () => {
     });
   });
 });
-
-
-

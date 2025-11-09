@@ -64,7 +64,7 @@ export const ContractorDashboard: React.FC = () => {
           />
           <span className="text-sm text-gray-600">
             {isConnected
-              ? "Connected to live updates"
+              ? "Connected"
               : signalRError
               ? `Connection error: ${signalRError}`
               : "Connecting..."}

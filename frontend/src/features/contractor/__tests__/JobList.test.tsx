@@ -72,9 +72,14 @@ describe("JobList", () => {
   it("should render tabs", () => {
     render(<JobList />);
 
-    expect(screen.getByText("Pending")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    // Check for tab buttons specifically
+    expect(
+      screen.getByRole("button", { name: /Pending/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Active/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Completed/i })
+    ).toBeInTheDocument();
   });
 
   it("should display pending jobs on Pending tab", async () => {
@@ -120,6 +125,3 @@ describe("JobList", () => {
     expect(badges.length).toBeGreaterThan(0);
   });
 });
-
-
-

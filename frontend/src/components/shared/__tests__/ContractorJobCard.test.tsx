@@ -53,8 +53,10 @@ describe("ContractorJobCard", () => {
   it("should display scheduled time", () => {
     render(<ContractorJobCard assignment={mockAssignment} />);
 
-    // The date should be formatted
-    expect(screen.getByText(/\d+/)).toBeInTheDocument();
+    // The date should be formatted (e.g., "Jan 15, 2:30 PM" or "Time not set")
+    // Check for time-related text that includes AM/PM or "Time not set"
+    const timeElement = screen.getByText(/AM|PM|Time not set/i);
+    expect(timeElement).toBeInTheDocument();
   });
 
   it("should open job details modal when clicked", async () => {
@@ -77,7 +79,10 @@ describe("ContractorJobCard", () => {
   });
 
   it("should not highlight non-pending jobs", () => {
-    const acceptedAssignment = { ...mockAssignment, status: "Accepted" as const };
+    const acceptedAssignment = {
+      ...mockAssignment,
+      status: "Accepted" as const,
+    };
     const { container } = render(
       <ContractorJobCard assignment={acceptedAssignment} />
     );
@@ -86,6 +91,3 @@ describe("ContractorJobCard", () => {
     expect(cardDiv).toBeInTheDocument();
   });
 });
-
-
-

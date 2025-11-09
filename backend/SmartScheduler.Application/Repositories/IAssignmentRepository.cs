@@ -75,6 +75,15 @@ public interface IAssignmentRepository
     Task<int> GetAssignmentCountByContractorAndStatusAsync(int contractorId, AssignmentStatus status);
 
     /// <summary>
+    /// Gets all assignments for a contractor with job and customer details.
+    /// Optionally filters by status. Results ordered by assigned date descending.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID.</param>
+    /// <param name="status">Optional status filter.</param>
+    /// <returns>List of assignments with job and customer details.</returns>
+    Task<List<Assignment>> GetContractorAssignmentsWithDetailsAsync(int contractorId, AssignmentStatus? status = null);
+
+    /// <summary>
     /// Gets contractor's job history with optional date filtering and pagination.
     /// Includes customer review data (rating and comment) if available.
     /// Results sorted by job scheduled date in descending order.

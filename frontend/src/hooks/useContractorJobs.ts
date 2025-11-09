@@ -9,12 +9,14 @@ import { Assignment } from "@/types/Assignment";
 import { contractorService } from "@/services/contractorService";
 
 interface UseContractorJobsState {
-  jobs: (Assignment & {
-    jobType?: string;
-    location?: string;
-    scheduledTime?: string;
-    customerName?: string;
-  })[] | null;
+  jobs:
+    | (Assignment & {
+        jobType?: string;
+        location?: string;
+        scheduledTime?: string;
+        customerName?: string;
+      })[]
+    | null;
   loading: boolean;
   error: string | null;
 }
@@ -28,6 +30,11 @@ interface CachedData {
 
 const cache = new Map<string, CachedData>();
 
+// Export function to clear cache (useful for testing)
+export const clearContractorJobsCache = () => {
+  cache.clear();
+};
+
 export const useContractorJobs = (
   status?: "Pending" | "Accepted" | "InProgress" | "Completed"
 ) => {
@@ -40,37 +47,40 @@ export const useContractorJobs = (
   const isMountedRef = useRef(true);
   const cacheKeyRef = useRef(`jobs_${status || "all"}`);
 
-  const fetchJobs = useCallback(async (forceRefresh = false) => {
-    const cacheKey = cacheKeyRef.current;
-    const now = Date.now();
+  const fetchJobs = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = cacheKeyRef.current;
+      const now = Date.now();
 
-    // Check cache
-    if (!forceRefresh && cache.has(cacheKey)) {
-      const cached = cache.get(cacheKey)!;
-      if (now - cached.timestamp < CACHE_DURATION_MS) {
-        if (isMountedRef.current) {
-          setState({ jobs: cached.data, loading: false, error: null });
+      // Check cache
+      if (!forceRefresh && cache.has(cacheKey)) {
+        const cached = cache.get(cacheKey)!;
+        if (now - cached.timestamp < CACHE_DURATION_MS) {
+          if (isMountedRef.current) {
+            setState({ jobs: cached.data, loading: false, error: null });
+          }
+          return;
         }
-        return;
       }
-    }
 
-    setState({ jobs: null, loading: true, error: null });
+      setState({ jobs: null, loading: true, error: null });
 
-    try {
-      const jobs = await contractorService.getAssignments(status);
-      if (isMountedRef.current) {
-        cache.set(cacheKey, { data: jobs, timestamp: Date.now() });
-        setState({ jobs, loading: false, error: null });
+      try {
+        const jobs = await contractorService.getAssignments(status);
+        if (isMountedRef.current) {
+          cache.set(cacheKey, { data: jobs, timestamp: Date.now() });
+          setState({ jobs, loading: false, error: null });
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to fetch jobs";
+        if (isMountedRef.current) {
+          setState({ jobs: null, loading: false, error: errorMessage });
+        }
       }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to fetch jobs";
-      if (isMountedRef.current) {
-        setState({ jobs: null, loading: false, error: errorMessage });
-      }
-    }
-  }, [status]);
+    },
+    [status]
+  );
 
   // Fetch on mount
   useEffect(() => {
@@ -91,6 +101,3 @@ export const useContractorJobs = (
     refetch,
   };
 };
-
-
-

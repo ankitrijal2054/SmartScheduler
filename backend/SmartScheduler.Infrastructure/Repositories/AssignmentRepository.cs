@@ -159,6 +159,35 @@ public class AssignmentRepository : IAssignmentRepository
     }
 
     /// <summary>
+    /// Gets all assignments for a contractor with job and customer details.
+    /// Optionally filters by status. Results ordered by assigned date descending.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID.</param>
+    /// <param name="status">Optional status filter.</param>
+    /// <returns>List of assignments with job and customer details.</returns>
+    public async Task<List<Assignment>> GetContractorAssignmentsWithDetailsAsync(
+        int contractorId,
+        AssignmentStatus? status = null)
+    {
+        var query = _dbContext.Assignments
+            .Include(a => a.Job)
+                .ThenInclude(j => j!.Customer)
+            .Where(a => a.ContractorId == contractorId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(a => a.Status == status.Value);
+        }
+
+        var assignments = await query
+            .OrderByDescending(a => a.AssignedAt)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return assignments;
+    }
+
+    /// <summary>
     /// Gets contractor's job history with optional date filtering and pagination.
     /// Includes customer review data (rating and comment) if available.
     /// Results sorted by job scheduled date in descending order.

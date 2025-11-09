@@ -52,7 +52,7 @@ export const contractorService = {
         customerName?: string;
         description?: string;
       })[];
-    }>("/api/v1/contractor/assignments", { params });
+    }>("/api/v1/contractors/assignments", { params });
     return response.data.data;
   },
 
@@ -71,7 +71,7 @@ export const contractorService = {
     }
   > {
     const response = await api.get(
-      `/api/v1/contractor/assignments/${assignmentId}`
+      `/api/v1/contractors/assignments/${assignmentId}`
     );
     return response.data.data;
   },
@@ -82,7 +82,7 @@ export const contractorService = {
    */
   async getJobDetails(assignmentId: string): Promise<JobDetails> {
     const response = await api.get<{ data: JobDetails }>(
-      `/api/v1/contractor/assignments/${assignmentId}`
+      `/api/v1/contractors/assignments/${assignmentId}`
     );
     return response.data.data;
   },
@@ -92,7 +92,7 @@ export const contractorService = {
    * Used in Story 5.2
    */
   async acceptAssignment(assignmentId: string): Promise<void> {
-    await api.post(`/api/v1/contractor/assignments/${assignmentId}/accept`);
+    await api.post(`/api/v1/contractors/assignments/${assignmentId}/accept`);
   },
 
   /**
@@ -103,7 +103,7 @@ export const contractorService = {
     assignmentId: string,
     reason?: string
   ): Promise<void> {
-    await api.post(`/api/v1/contractor/assignments/${assignmentId}/decline`, {
+    await api.post(`/api/v1/contractors/assignments/${assignmentId}/decline`, {
       reason,
     });
   },

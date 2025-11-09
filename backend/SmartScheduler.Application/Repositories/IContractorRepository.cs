@@ -85,5 +85,13 @@ public interface IContractorRepository
     /// <param name="jobId">The job ID.</param>
     /// <returns>The job if found, null otherwise.</returns>
     Task<Job?> GetJobByIdAsync(int jobId);
+
+    /// <summary>
+    /// Gets a contractor by UserId.
+    /// Used to resolve contractor ID from authenticated user ID.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <returns>The contractor if found, null otherwise.</returns>
+    Task<Contractor?> GetByUserIdAsync(int userId);
 }
 

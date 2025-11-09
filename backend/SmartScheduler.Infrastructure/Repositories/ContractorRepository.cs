@@ -163,5 +163,16 @@ public class ContractorRepository : IContractorRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(j => j.Id == jobId);
     }
+
+    /// <summary>
+    /// Gets a contractor by UserId.
+    /// Used to resolve contractor ID from authenticated user ID.
+    /// </summary>
+    public async Task<Contractor?> GetByUserIdAsync(int userId)
+    {
+        return await _dbContext.Contractors
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.UserId == userId);
+    }
 }
 

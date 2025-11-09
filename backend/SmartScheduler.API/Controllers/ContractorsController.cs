@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Queries;
+using SmartScheduler.Application.Repositories;
 using SmartScheduler.Application.Responses;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Exceptions;
@@ -21,15 +22,18 @@ namespace SmartScheduler.API.Controllers;
 public class ContractorsController : ControllerBase
 {
     private readonly IContractorService _contractorService;
+    private readonly IContractorRepository _contractorRepository;
     private readonly IMediator _mediator;
     private readonly ILogger<ContractorsController> _logger;
 
     public ContractorsController(
         IContractorService contractorService,
+        IContractorRepository contractorRepository,
         IMediator mediator,
         ILogger<ContractorsController> logger)
     {
         _contractorService = contractorService ?? throw new ArgumentNullException(nameof(contractorService));
+        _contractorRepository = contractorRepository ?? throw new ArgumentNullException(nameof(contractorRepository));
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -236,8 +240,18 @@ public class ContractorsController : ControllerBase
     {
         try
         {
-            var contractorId = GetUserId();
-            _logger.LogInformation("Get contractor profile requested. ContractorId: {ContractorId}", contractorId);
+            var userId = GetUserId();
+            
+            // Resolve contractor ID from user ID
+            var contractor = await _contractorRepository.GetByUserIdAsync(userId);
+            if (contractor == null)
+            {
+                _logger.LogWarning("Contractor not found for UserId: {UserId}", userId);
+                return NotFound();
+            }
+
+            var contractorId = contractor.Id;
+            _logger.LogInformation("Get contractor profile requested. UserId: {UserId}, ContractorId: {ContractorId}", userId, contractorId);
 
             var query = new GetContractorProfileQuery(contractorId);
             var profile = await _mediator.Send(query);
@@ -277,7 +291,17 @@ public class ContractorsController : ControllerBase
     {
         try
         {
-            var contractorId = GetUserId();
+            var userId = GetUserId();
+            
+            // Resolve contractor ID from user ID
+            var contractor = await _contractorRepository.GetByUserIdAsync(userId);
+            if (contractor == null)
+            {
+                _logger.LogWarning("Contractor not found for UserId: {UserId}", userId);
+                return NotFound();
+            }
+
+            var contractorId = contractor.Id;
 
             // Validate pagination parameters
             if (skip < 0)
@@ -291,8 +315,8 @@ public class ContractorsController : ControllerBase
                 return BadRequest("startDate must be before or equal to endDate");
 
             _logger.LogInformation(
-                "Get job history requested. ContractorId: {ContractorId}, Skip: {Skip}, Take: {Take}, StartDate: {StartDate}, EndDate: {EndDate}",
-                contractorId, skip, take, startDate, endDate);
+                "Get job history requested. UserId: {UserId}, ContractorId: {ContractorId}, Skip: {Skip}, Take: {Take}, StartDate: {StartDate}, EndDate: {EndDate}",
+                userId, contractorId, skip, take, startDate, endDate);
 
             var query = new GetContractorJobHistoryQuery(contractorId, startDate, endDate, skip, take);
             var jobHistory = await _mediator.Send(query);

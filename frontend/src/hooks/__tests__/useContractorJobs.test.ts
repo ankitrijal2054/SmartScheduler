@@ -4,7 +4,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useContractorJobs } from "../useContractorJobs";
+import {
+  useContractorJobs,
+  clearContractorJobsCache,
+} from "../useContractorJobs";
 
 // Mock contractorService
 vi.mock("@/services/contractorService", () => ({
@@ -33,6 +36,7 @@ describe("useContractorJobs Hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    clearContractorJobsCache();
   });
 
   it("should fetch assignments on mount", async () => {
@@ -96,11 +100,16 @@ describe("useContractorJobs Hook", () => {
       expect(result.current.loading).toBe(false);
     });
 
+    expect(mockGetAssignments).toHaveBeenCalledTimes(1);
+
     result.current.refetch();
 
-    await waitFor(() => {
-      expect(mockGetAssignments).toHaveBeenCalledTimes(2);
-    });
+    await waitFor(
+      () => {
+        expect(mockGetAssignments).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 3000 }
+    );
   });
 
   it("should filter by status when provided", async () => {
@@ -117,6 +126,3 @@ describe("useContractorJobs Hook", () => {
     expect(mockGetAssignments).toHaveBeenCalledWith("Pending");
   });
 });
-
-
-
