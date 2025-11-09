@@ -14,6 +14,7 @@ import { JobStatus } from "@/types/Job";
 interface RatingFormProps {
   jobId: string;
   contractorId: string;
+  contractorName?: string;
   jobStatus: JobStatus;
   onRatingSubmitted?: () => void;
 }
@@ -21,6 +22,7 @@ interface RatingFormProps {
 export const RatingForm: React.FC<RatingFormProps> = ({
   jobId,
   contractorId,
+  contractorName,
   jobStatus,
   onRatingSubmitted,
 }) => {
@@ -59,7 +61,7 @@ export const RatingForm: React.FC<RatingFormProps> = ({
         </h2>
         <p className="text-sm text-gray-600">
           Your feedback helps us improve and informs other customers about{" "}
-          {contractorId}
+          {contractorName || "this contractor"}
         </p>
       </div>
 

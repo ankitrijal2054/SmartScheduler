@@ -3,7 +3,7 @@
  * Custom hook for subscribing to real-time job status updates via SignalR
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
   signalRService,
   JobStatusUpdateEvent,
@@ -29,7 +29,7 @@ interface UseSignalRReturn {
 export const useSignalR = (
   options: UseSignalROptions = {}
 ): UseSignalRReturn => {
-  const isConnectedRef = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   /**
@@ -63,7 +63,7 @@ export const useSignalR = (
       unsubscribeRef.current = null;
     }
     await signalRService.disconnect();
-    isConnectedRef.current = false;
+    setIsConnected(false);
   }, []);
 
   /**
@@ -79,7 +79,7 @@ export const useSignalR = (
           maxRetries: 5,
         });
 
-        isConnectedRef.current = true;
+        setIsConnected(true);
 
         // Subscribe to job status updates
         unsubscribeRef.current = signalRService.subscribe(
@@ -93,6 +93,7 @@ export const useSignalR = (
         }
       } catch (error) {
         console.error("SignalR connection error:", error);
+        setIsConnected(false);
         if (options.onError && error instanceof Error) {
           options.onError(error);
         }
@@ -100,14 +101,14 @@ export const useSignalR = (
 
       // Listen for connection state changes
       const handleConnected = () => {
-        isConnectedRef.current = true;
+        setIsConnected(true);
         if (options.onConnected) {
           options.onConnected();
         }
       };
 
       const handleDisconnected = () => {
-        isConnectedRef.current = false;
+        setIsConnected(false);
         if (options.onDisconnected) {
           options.onDisconnected();
         }
@@ -150,7 +151,7 @@ export const useSignalR = (
   }, []);
 
   return {
-    isConnected: isConnectedRef.current,
+    isConnected,
     subscribe,
     disconnect,
   };

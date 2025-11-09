@@ -78,8 +78,12 @@ export const ContractorJobCard: React.FC<ContractorJobCardProps> = ({
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                 {assignment.jobType || "General Job"}
               </span>
-              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${statusConfig.badge}`}>
-                <span className={`w-2 h-2 rounded-full mr-1.5 ${statusConfig.dot}`} />
+              <span
+                className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${statusConfig.badge}`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full mr-1.5 ${statusConfig.dot}`}
+                />
                 {statusConfig.label}
               </span>
             </div>
@@ -87,7 +91,9 @@ export const ContractorJobCard: React.FC<ContractorJobCardProps> = ({
             {/* Location */}
             <div className="flex items-center gap-2 text-gray-700 mb-2">
               <MapPin size={16} className="text-gray-500 flex-shrink-0" />
-              <span className="text-sm truncate">{assignment.location || "Location TBD"}</span>
+              <span className="text-sm truncate">
+                {assignment.location || "Location TBD"}
+              </span>
             </div>
 
             {/* Scheduled Time */}
@@ -99,7 +105,9 @@ export const ContractorJobCard: React.FC<ContractorJobCardProps> = ({
             {/* Customer Name */}
             <div className="flex items-center gap-2 text-gray-700">
               <User size={16} className="text-gray-500 flex-shrink-0" />
-              <span className="text-sm truncate">{assignment.customerName || "Customer"}</span>
+              <span className="text-sm truncate">
+                {assignment.customerName || "Customer"}
+              </span>
             </div>
           </div>
 
@@ -120,13 +128,10 @@ export const ContractorJobCard: React.FC<ContractorJobCardProps> = ({
 
       {/* Job Details Modal */}
       <JobDetailsModal
-        assignment={assignment}
+        assignmentId={assignment.id}
         isOpen={showDetails}
         onClose={() => setShowDetails(false)}
       />
     </>
   );
 };
-
-
-

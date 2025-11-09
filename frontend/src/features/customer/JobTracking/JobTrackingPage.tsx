@@ -36,13 +36,16 @@ export const JobTrackingPage: React.FC = () => {
 
   // Subscribe to real-time updates
   const { isConnected } = useSignalR({
-    onJobStatusUpdate: (event) => {
-      // Only update if this is the current job
-      if (event.jobId === jobId) {
-        // Refresh job data when status updates
-        refreshJob();
-      }
-    },
+    onJobStatusUpdate: React.useCallback(
+      (event) => {
+        // Only update if this is the current job
+        if (event.jobId === jobId) {
+          // Refresh job data when status updates
+          refreshJob();
+        }
+      },
+      [jobId, refreshJob]
+    ),
   });
 
   // Update displayed job when fetched job changes
@@ -194,6 +197,7 @@ export const JobTrackingPage: React.FC = () => {
           <RatingForm
             jobId={displayedJob.id}
             contractorId={displayedJob.contractor.id}
+            contractorName={displayedJob.contractor.name}
             jobStatus={displayedJob.status}
             onRatingSubmitted={() => {
               // Optionally refresh job details after rating submission

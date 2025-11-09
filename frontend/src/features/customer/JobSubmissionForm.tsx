@@ -4,7 +4,8 @@
  * Integrates all form field components and handles submission flow
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useJobSubmission } from "@/hooks/useJobSubmission";
 import { JobTypeSelect } from "@/components/forms/JobTypeSelect";
 import { LocationAutocomplete } from "@/components/forms/LocationAutocomplete";
@@ -20,6 +21,7 @@ interface JobSubmissionFormProps {
 export const JobSubmissionForm: React.FC<JobSubmissionFormProps> = ({
   onSuccess,
 }) => {
+  const navigate = useNavigate();
   const {
     toasts,
     success: showSuccessToast,
@@ -39,9 +41,18 @@ export const JobSubmissionForm: React.FC<JobSubmissionFormProps> = ({
     clearSuccess,
   } = useJobSubmission();
 
+  // Track the last error we've shown to prevent duplicate toasts
+  const lastShownErrorRef = useRef<string | null>(null);
+  const lastShownSuccessRef = useRef<string | null>(null);
+
   // Show success toast and call callback when form submission succeeds
   useEffect(() => {
-    if (success && submittedJobId) {
+    if (
+      success &&
+      submittedJobId &&
+      lastShownSuccessRef.current !== submittedJobId
+    ) {
+      lastShownSuccessRef.current = submittedJobId;
       showSuccessToast("Job submitted! We're finding contractors now.");
       if (onSuccess) {
         const timer = setTimeout(() => {
@@ -50,14 +61,22 @@ export const JobSubmissionForm: React.FC<JobSubmissionFormProps> = ({
         return () => clearTimeout(timer);
       }
     }
-  }, [success, submittedJobId]); // Only depend on submission state, not callbacks
+  }, [success, submittedJobId, showSuccessToast, onSuccess]);
 
-  // Show error toast when submission fails
+  // Show error toast when submission fails (only once per error)
   useEffect(() => {
-    if (error) {
+    if (error && lastShownErrorRef.current !== error) {
+      lastShownErrorRef.current = error;
       showErrorToast(error);
     }
-  }, [error]); // Only depend on error state
+  }, [error, showErrorToast]);
+
+  // Reset error tracking when error is cleared
+  useEffect(() => {
+    if (!error) {
+      lastShownErrorRef.current = null;
+    }
+  }, [error]);
 
   // Check if all required fields are filled for submit button state
   const isFormValid = !!(
@@ -69,6 +88,28 @@ export const JobSubmissionForm: React.FC<JobSubmissionFormProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate("/customer/dashboard")}
+          className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 transition-colors"
+          disabled={loading}
+        >
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Dashboard
+        </button>
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
