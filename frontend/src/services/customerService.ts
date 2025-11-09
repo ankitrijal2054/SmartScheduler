@@ -9,6 +9,8 @@ import {
   CreateJobRequest,
   JobCreationResponse,
   ContractorProfileResponse,
+  CreateReviewRequest,
+  Review,
 } from "@/types/Customer";
 import { JobDetail, JobDetailResponse } from "@/types/Job";
 
@@ -144,6 +146,25 @@ class CustomerService {
   }
 
   /**
+   * Submit a rating/review for a completed job
+   * @param jobId Job unique identifier
+   * @param request Rating submission request data
+   * @returns Submitted review with confirmation details
+   * @throws Error if submission fails
+   */
+  async submitRating(jobId: string, request: CreateReviewRequest): Promise<Review> {
+    try {
+      const response = await this.axiosInstance.post<{
+        data: Review;
+        message: string;
+      }>(`/api/v1/customer/jobs/${jobId}/review`, request);
+      return response.data.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Handle and normalize API errors to user-friendly messages
    * @param error Any error from axios
    * @returns Error object with user-friendly message
@@ -172,12 +193,18 @@ class CustomerService {
 
         case 403:
           return new Error(
-            "You don't have permission to submit a job. Please log in as a customer."
+            "You don't have permission to perform this action. Please log in as a customer."
+          );
+
+        case 404:
+          return new Error(
+            errorData?.message ||
+              "Job not found or not in completed status. You can only rate completed jobs."
           );
 
         case 409:
           return new Error(
-            "A job with this date and time already exists. Please choose a different time."
+            errorData?.message || "You have already rated this job."
           );
 
         case 500:
@@ -188,7 +215,7 @@ class CustomerService {
         default:
           return new Error(
             errorData?.message ||
-              "Failed to submit job. Please check your connection and try again."
+              "Failed to submit request. Please check your connection and try again."
           );
       }
     }

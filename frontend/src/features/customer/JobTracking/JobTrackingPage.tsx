@@ -13,6 +13,7 @@ import { JobStatusTimeline } from "./JobStatusTimeline";
 import { JobDetailsCard } from "./JobDetailsCard";
 import { ContractorInfoCard } from "./ContractorInfoCard";
 import { ContractorProfileModal } from "./ContractorProfileModal";
+import { RatingForm } from "./RatingForm";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { JobDetail } from "@/types/Job";
 
@@ -187,6 +188,21 @@ export const JobTrackingPage: React.FC = () => {
             ← Back to Jobs List
           </button>
         </div>
+
+        {/* Rating Form - appears only when job is completed */}
+        {displayedJob.status === "Completed" && displayedJob.contractor && (
+          <RatingForm
+            jobId={displayedJob.id}
+            contractorId={displayedJob.contractor.id}
+            jobStatus={displayedJob.status}
+            onRatingSubmitted={() => {
+              // Optionally refresh job details after rating submission
+              setTimeout(() => {
+                refreshJob();
+              }, 1000);
+            }}
+          />
+        )}
       </div>
 
       {/* Contractor Profile Modal */}

@@ -28,6 +28,15 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
+// Mock RatingForm component
+vi.mock("../RatingForm", () => ({
+  RatingForm: ({ jobId, contractorId, jobStatus, onRatingSubmitted }: any) => (
+    <div data-testid="rating-form" data-job-id={jobId} data-contractor-id={contractorId} data-status={jobStatus}>
+      <button onClick={onRatingSubmitted}>Simulate Rating Submitted</button>
+    </div>
+  ),
+}));
+
 const mockJob: JobDetail = {
   id: "job_123",
   customerId: "cust_1",
@@ -383,5 +392,127 @@ describe("JobTrackingPage Component", () => {
       const pageTitle = screen.getByText("Track Your Job");
       expect(pageTitle).toBeInTheDocument();
     });
+  });
+
+  it("should show RatingForm when job status is Completed", () => {
+    const completedJob: JobDetail = {
+      ...mockJob,
+      status: "Completed",
+    };
+
+    vi.mocked(useJobModule.useJob).mockReturnValue({
+      job: completedJob,
+      loading: false,
+      error: null,
+      fetchJob: vi.fn(),
+      refreshJob: vi.fn(),
+    });
+
+    vi.mocked(useSignalRModule.useSignalR).mockReturnValue({
+      isConnected: true,
+      subscribe: vi.fn(() => vi.fn()),
+      disconnect: vi.fn(),
+    });
+
+    renderWithRouter(<JobTrackingPage />);
+
+    // RatingForm should be visible
+    expect(screen.getByTestId("rating-form")).toBeInTheDocument();
+    expect(screen.getByTestId("rating-form")).toHaveAttribute(
+      "data-job-id",
+      "job_123"
+    );
+    expect(screen.getByTestId("rating-form")).toHaveAttribute(
+      "data-contractor-id",
+      "contractor_1"
+    );
+    expect(screen.getByTestId("rating-form")).toHaveAttribute(
+      "data-status",
+      "Completed"
+    );
+  });
+
+  it("should not show RatingForm when job status is not Completed", () => {
+    vi.mocked(useJobModule.useJob).mockReturnValue({
+      job: mockJob, // Status is InProgress
+      loading: false,
+      error: null,
+      fetchJob: vi.fn(),
+      refreshJob: vi.fn(),
+    });
+
+    vi.mocked(useSignalRModule.useSignalR).mockReturnValue({
+      isConnected: true,
+      subscribe: vi.fn(() => vi.fn()),
+      disconnect: vi.fn(),
+    });
+
+    renderWithRouter(<JobTrackingPage />);
+
+    // RatingForm should not be visible
+    expect(screen.queryByTestId("rating-form")).not.toBeInTheDocument();
+  });
+
+  it("should not show RatingForm if contractor is not assigned", () => {
+    const jobWithoutContractor: JobDetail = {
+      ...mockJob,
+      status: "Completed",
+      contractor: undefined,
+    };
+
+    vi.mocked(useJobModule.useJob).mockReturnValue({
+      job: jobWithoutContractor,
+      loading: false,
+      error: null,
+      fetchJob: vi.fn(),
+      refreshJob: vi.fn(),
+    });
+
+    vi.mocked(useSignalRModule.useSignalR).mockReturnValue({
+      isConnected: true,
+      subscribe: vi.fn(() => vi.fn()),
+      disconnect: vi.fn(),
+    });
+
+    renderWithRouter(<JobTrackingPage />);
+
+    // RatingForm should not be visible
+    expect(screen.queryByTestId("rating-form")).not.toBeInTheDocument();
+  });
+
+  it("should call refreshJob after rating submission", async () => {
+    const mockRefreshJob = vi.fn();
+    const completedJob: JobDetail = {
+      ...mockJob,
+      status: "Completed",
+    };
+
+    vi.mocked(useJobModule.useJob).mockReturnValue({
+      job: completedJob,
+      loading: false,
+      error: null,
+      fetchJob: vi.fn(),
+      refreshJob: mockRefreshJob,
+    });
+
+    vi.mocked(useSignalRModule.useSignalR).mockReturnValue({
+      isConnected: true,
+      subscribe: vi.fn(() => vi.fn()),
+      disconnect: vi.fn(),
+    });
+
+    renderWithRouter(<JobTrackingPage />);
+
+    const ratingForm = screen.getByTestId("rating-form");
+    const submitButton = ratingForm.querySelector("button");
+
+    if (submitButton) {
+      await userEvent.click(submitButton);
+
+      // Should call refreshJob after a delay
+      await waitFor(() => {
+        expect(mockRefreshJob).toHaveBeenCalled();
+      }, { timeout: 2000 });
+    }
   });
 });

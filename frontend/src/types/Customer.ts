@@ -94,3 +94,24 @@ export interface ContractorProfileResponse {
   };
   reviews: ReviewWithCustomer[];
 }
+
+/**
+ * Request payload for submitting a review/rating
+ */
+export interface CreateReviewRequest {
+  rating: number; // 1-5 stars (required)
+  comment: string | null; // Optional text feedback
+}
+
+/**
+ * Review submitted by customer
+ */
+export interface Review {
+  id: string;
+  jobId: string;
+  contractorId: string;
+  customerId: string;
+  rating: number; // 1-5 stars
+  comment: string | null; // Text review (may be null)
+  createdAt: string; // ISO 8601 timestamp
+}
