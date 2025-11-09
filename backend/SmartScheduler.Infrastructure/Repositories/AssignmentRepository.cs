@@ -127,5 +127,35 @@ public class AssignmentRepository : IAssignmentRepository
 
         return assignments;
     }
+
+    /// <summary>
+    /// Gets assignments for a contractor filtered by status with pagination.
+    /// Returns results in reverse chronological order (newest first).
+    /// Used to display job history (e.g., completed jobs).
+    /// </summary>
+    public async Task<List<Assignment>> GetAssignmentsByContractorAndStatusAsync(int contractorId, AssignmentStatus status, int limit, int offset)
+    {
+        var assignments = await _dbContext.Assignments
+            .Include(a => a.Job)
+            .Where(a => a.ContractorId == contractorId && a.Status == status)
+            .OrderByDescending(a => a.CompletedAt ?? a.StartedAt ?? a.AcceptedAt ?? a.AssignedAt)
+            .Skip(offset)
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return assignments;
+    }
+
+    /// <summary>
+    /// Gets the total count of assignments for a contractor with a specific status.
+    /// Used for pagination calculations.
+    /// </summary>
+    public async Task<int> GetAssignmentCountByContractorAndStatusAsync(int contractorId, AssignmentStatus status)
+    {
+        return await _dbContext.Assignments
+            .Where(a => a.ContractorId == contractorId && a.Status == status)
+            .CountAsync();
+    }
 }
 

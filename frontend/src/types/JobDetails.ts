@@ -38,7 +38,13 @@ export interface JobDetailReview {
 export interface JobDetails {
   // Assignment info
   assignmentId: string;
-  status: "Pending" | "Accepted" | "Declined" | "Cancelled";
+  status:
+    | "Pending"
+    | "Accepted"
+    | "InProgress"
+    | "Completed"
+    | "Declined"
+    | "Cancelled";
   assignedAt: string; // ISO 8601 datetime
   acceptedAt?: string | null;
 

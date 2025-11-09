@@ -10,7 +10,7 @@ import { Assignment } from "@/types/Assignment";
 import { JobDetails } from "@/types/JobDetails";
 
 const api = axios.create({
-  baseURL: config.apiBaseUrl,
+  baseURL: config.api.baseUrl,
 });
 
 // Add token to requests
@@ -100,5 +100,31 @@ export const contractorService = {
     await api.post(`/api/v1/contractor/assignments/${assignmentId}/decline`, {
       reason,
     });
+  },
+
+  /**
+   * Mark a job as in-progress
+   * Transitions status from 'Accepted' to 'InProgress'
+   * Publishes event for real-time customer notification
+   * Used in Story 5.3
+   */
+  async markInProgress(assignmentId: string): Promise<Assignment> {
+    const response = await api.patch<{ data: Assignment }>(
+      `/api/v1/assignments/${assignmentId}/mark-in-progress`
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Mark a job as completed
+   * Transitions status from 'InProgress' to 'Completed'
+   * Publishes event to trigger completion email
+   * Used in Story 5.3
+   */
+  async markComplete(assignmentId: string): Promise<Assignment> {
+    const response = await api.patch<{ data: Assignment }>(
+      `/api/v1/assignments/${assignmentId}/mark-complete`
+    );
+    return response.data.data;
   },
 };

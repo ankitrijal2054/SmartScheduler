@@ -63,3 +63,12 @@ public class ContractorNotFoundException : NotFoundException
     public ContractorNotFoundException(string message) : base(message) { }
 }
 
+/// <summary>
+/// Thrown when an assignment is not found.
+/// Maps to HTTP 404 Not Found.
+/// </summary>
+public class AssignmentNotFoundException : NotFoundException
+{
+    public AssignmentNotFoundException(string message) : base(message) { }
+}
+

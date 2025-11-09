@@ -3,12 +3,14 @@
  * Displays full details of a job assignment in a modal
  * Includes accept/decline workflow with customer profile and history
  * Story 5.2: Job Details Modal & Accept/Decline Workflow
+ * Story 5.3: Job Status Management (In-Progress & Completion)
  */
 
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useJobDetails } from "@/hooks/useJobDetails";
 import { useAcceptDeclineJob } from "@/hooks/useAcceptDeclineJob";
+import { useStatusTransition } from "@/hooks/useStatusTransition";
 import { JobInfoSection } from "@/components/shared/JobInfoSection";
 import { CustomerProfileCard } from "./CustomerProfileCard";
 import { DeclineReasonModal } from "./DeclineReasonModal";
@@ -29,6 +31,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
   onClose,
 }) => {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [toastId] = useState(Math.random().toString(36).substr(2, 9));
   const [toast, setToast] = useState<{
     type: ToastType;
     message: string;
@@ -47,6 +50,14 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
     declineJob,
   } = useAcceptDeclineJob();
 
+  // Handle status transitions (in-progress, completed)
+  const {
+    isLoading: isTransitioning,
+    error: transitionError,
+    markInProgress,
+    markComplete,
+  } = useStatusTransition();
+
   // Close toast after 3 seconds
   useEffect(() => {
     if (toast) {
@@ -54,6 +65,42 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  const handleMarkInProgress = async () => {
+    if (!assignmentId) return;
+
+    try {
+      await markInProgress(assignmentId);
+      setToast({ type: "success", message: "Job marked as in-progress! 🚀" });
+      setTimeout(() => {
+        onClose();
+        window.location.reload(); // Refresh to update job status
+      }, 500);
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Failed to mark job as in-progress. Please try again.",
+      });
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    if (!assignmentId) return;
+
+    try {
+      await markComplete(assignmentId);
+      setToast({ type: "success", message: "Job marked as completed! ✅" });
+      setTimeout(() => {
+        onClose();
+        window.location.reload(); // Refresh to update job status
+      }, 500);
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Failed to mark job as completed. Please try again.",
+      });
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -218,7 +265,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                 >
                   {isLoading ? (
                     <>
-                      <LoadingSpinner size="sm" className="!text-white" />
+                      <LoadingSpinner size="sm" />
                       Declining...
                     </>
                   ) : (
@@ -234,7 +281,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
                 >
                   {isLoading ? (
                     <>
-                      <LoadingSpinner size="sm" className="!text-white" />
+                      <LoadingSpinner size="sm" />
                       Accepting...
                     </>
                   ) : (
@@ -244,10 +291,46 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
               </>
             )}
 
-            {jobDetails.status !== "Pending" && (
-              <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg flex items-center justify-center">
-                Status:{" "}
-                <span className="ml-2 font-semibold">{jobDetails.status}</span>
+            {/* Status-based actions */}
+            {jobDetails.status === "Accepted" && (
+              <button
+                onClick={handleMarkInProgress}
+                disabled={isTransitioning}
+                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                aria-label="Mark job as in-progress"
+              >
+                {isTransitioning ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    Starting...
+                  </>
+                ) : (
+                  "Mark In Progress"
+                )}
+              </button>
+            )}
+
+            {jobDetails.status === "InProgress" && (
+              <button
+                onClick={handleMarkComplete}
+                disabled={isTransitioning}
+                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                aria-label="Mark job as completed"
+              >
+                {isTransitioning ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    Completing...
+                  </>
+                ) : (
+                  "Mark Complete"
+                )}
+              </button>
+            )}
+
+            {jobDetails.status === "Completed" && (
+              <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-green-50 rounded-lg flex items-center justify-center border border-green-200">
+                ✅ <span className="ml-2 font-semibold">Completed</span>
               </div>
             )}
           </div>
@@ -265,6 +348,7 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
       {/* Toast Notifications */}
       {toast && (
         <Toast
+          id={toastId}
           type={toast.type}
           message={toast.message}
           onClose={() => setToast(null)}

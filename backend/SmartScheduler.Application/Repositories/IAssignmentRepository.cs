@@ -55,5 +55,23 @@ public interface IAssignmentRepository
     /// <param name="date">The date to filter assignments by.</param>
     /// <returns>List of assignments for the contractor on the target date.</returns>
     Task<List<Assignment>> GetContractorAssignmentsByDateAsync(int contractorId, DateTime date);
+
+    /// <summary>
+    /// Gets assignments for a contractor filtered by status with pagination.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID to query for.</param>
+    /// <param name="status">The assignment status to filter by.</param>
+    /// <param name="limit">Maximum number of results to return.</param>
+    /// <param name="offset">Number of results to skip.</param>
+    /// <returns>List of assignments matching the filters in reverse chronological order.</returns>
+    Task<List<Assignment>> GetAssignmentsByContractorAndStatusAsync(int contractorId, AssignmentStatus status, int limit, int offset);
+
+    /// <summary>
+    /// Gets the total count of assignments for a contractor with a specific status.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID to query for.</param>
+    /// <param name="status">The assignment status to filter by.</param>
+    /// <returns>Total count of matching assignments.</returns>
+    Task<int> GetAssignmentCountByContractorAndStatusAsync(int contractorId, AssignmentStatus status);
 }
 

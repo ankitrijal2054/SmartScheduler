@@ -9,6 +9,8 @@
 export type AssignmentStatus =
   | "Pending"
   | "Accepted"
+  | "InProgress"
+  | "Completed"
   | "Declined"
   | "Cancelled";
 
