@@ -45,20 +45,35 @@ export const useJobs = (): UseJobsReturn => {
     sortOrder: "asc",
   });
 
-  const cancelTokenRef = useRef(axios.CancelToken.source());
+  const cancelTokenRef = useRef<axios.CancelTokenSource | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
+  const paramsRef = useRef<JobsQueryParams>(params);
+
+  // Keep paramsRef in sync with params
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   /**
    * Fetch jobs from API
    */
   const fetchJobs = useCallback(
     async (filters?: JobsQueryParams) => {
+      // Cancel previous request if it exists
+      if (cancelTokenRef.current) {
+        cancelTokenRef.current.cancel("New request initiated");
+      }
+
+      // Create new cancel token for this request
+      cancelTokenRef.current = axios.CancelToken.source();
+
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const queryParams = { ...params, ...filters };
+        // Use current params from ref to avoid stale closure
+        const queryParams = { ...paramsRef.current, ...filters };
         const response = await dispatcherService.getJobs(
           queryParams,
           cancelTokenRef.current.token
@@ -66,15 +81,17 @@ export const useJobs = (): UseJobsReturn => {
 
         // Normalize response data
         const jobs: Job[] = response.data.map((job) => ({
-          id: job.id,
-          customerId: job.customerId,
+          id: String(job.id), // Convert number to string
+          customerId: String(job.customerId), // Convert number to string
           customerName: job.customerName,
           location: job.location,
           desiredDateTime: job.desiredDateTime,
           jobType: (job.jobType as JobType) || "Other",
           description: job.description,
           status: (job.status as JobStatus) || "Pending",
-          currentAssignedContractorId: job.currentAssignedContractorId,
+          currentAssignedContractorId: job.currentAssignedContractorId
+            ? String(job.currentAssignedContractorId)
+            : null, // Convert number to string or keep null
           assignedContractorName: job.assignedContractorName,
           assignedContractorRating: job.assignedContractorRating,
           createdAt: job.createdAt,
@@ -88,6 +105,7 @@ export const useJobs = (): UseJobsReturn => {
           pagination: response.pagination,
         });
 
+        // Update params if filters were provided
         if (filters) {
           setParams((prev) => ({ ...prev, ...filters }));
         }
@@ -99,7 +117,7 @@ export const useJobs = (): UseJobsReturn => {
         }
       }
     },
-    [params]
+    [] // Empty dependency array - use refs to access current values
   );
 
   /**
@@ -107,21 +125,22 @@ export const useJobs = (): UseJobsReturn => {
    */
   const refreshJobs = useCallback(async () => {
     try {
-      const response = await dispatcherService.getJobs(
-        params,
-        cancelTokenRef.current.token
-      );
+      // Use current params from ref
+      // Don't use cancel token for polling - it should run independently
+      const response = await dispatcherService.getJobs(paramsRef.current);
 
       const jobs: Job[] = response.data.map((job) => ({
-        id: job.id,
-        customerId: job.customerId,
+        id: String(job.id), // Convert number to string
+        customerId: String(job.customerId), // Convert number to string
         customerName: job.customerName,
         location: job.location,
         desiredDateTime: job.desiredDateTime,
         jobType: (job.jobType as JobType) || "Other",
         description: job.description,
         status: (job.status as JobStatus) || "Pending",
-        currentAssignedContractorId: job.currentAssignedContractorId,
+        currentAssignedContractorId: job.currentAssignedContractorId
+          ? String(job.currentAssignedContractorId)
+          : null, // Convert number to string or keep null
         assignedContractorName: job.assignedContractorName,
         assignedContractorRating: job.assignedContractorRating,
         createdAt: job.createdAt,
@@ -134,11 +153,10 @@ export const useJobs = (): UseJobsReturn => {
         pagination: response.pagination,
       }));
     } catch (err) {
-      if (!axios.isCancel(err)) {
-        console.error("Error refreshing jobs:", err);
-      }
+      // Don't show errors for polling failures - just log them
+      console.error("Error refreshing jobs:", err);
     }
-  }, [params]);
+  }, []);
 
   /**
    * Set current page
@@ -166,7 +184,14 @@ export const useJobs = (): UseJobsReturn => {
    */
   useEffect(() => {
     fetchJobs();
-  }, [params, fetchJobs]);
+  }, [
+    params.page,
+    params.limit,
+    params.sortBy,
+    params.sortOrder,
+    params.status,
+    fetchJobs,
+  ]);
 
   /**
    * Set up polling for real-time updates
@@ -188,9 +213,10 @@ export const useJobs = (): UseJobsReturn => {
    * Cleanup on unmount
    */
   useEffect(() => {
-    const currentCancelToken = cancelTokenRef.current;
     return () => {
-      currentCancelToken.cancel("Component unmounted");
+      if (cancelTokenRef.current) {
+        cancelTokenRef.current.cancel("Component unmounted");
+      }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }

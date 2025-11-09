@@ -164,11 +164,27 @@ export const useJobSubmission = () => {
       }));
 
       try {
+        // Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO 8601 format
+        // datetime-local doesn't include timezone, so we treat it as local time and convert to ISO
+        let isoDateTime = state.formData.desiredDateTime;
+        if (
+          isoDateTime &&
+          !isoDateTime.includes("Z") &&
+          !isoDateTime.includes("+")
+        ) {
+          // If it's in datetime-local format (YYYY-MM-DDTHH:mm), convert to ISO 8601
+          // Append seconds and timezone offset
+          const date = new Date(isoDateTime);
+          if (!isNaN(date.getTime())) {
+            isoDateTime = date.toISOString();
+          }
+        }
+
         const request: CreateJobRequest = {
           jobType: state.formData.jobType as JobType,
           location: state.formData.location,
           description: state.formData.description,
-          desiredDateTime: state.formData.desiredDateTime,
+          desiredDateTime: isoDateTime,
         };
 
         const response = await customerService.submitJob(request);

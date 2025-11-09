@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,7 @@ using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Events;
+using SmartScheduler.Infrastructure.Hubs;
 using SmartScheduler.Infrastructure.Persistence;
 
 namespace SmartScheduler.Infrastructure.EventHandlers;
@@ -20,17 +22,20 @@ public class JobInProgressEventHandler : INotificationHandler<JobInProgressEvent
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<JobInProgressEventHandler> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public JobInProgressEventHandler(
         IEmailService emailService,
         ApplicationDbContext dbContext,
         ILogger<JobInProgressEventHandler> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHubContext<NotificationHub> hubContext)
     {
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
     }
 
     public async Task Handle(JobInProgressEvent notification, CancellationToken cancellationToken)
@@ -107,6 +112,40 @@ public class JobInProgressEventHandler : INotificationHandler<JobInProgressEvent
             {
                 _logger.LogWarning("Job in-progress email failed to send for Job {JobId} to {Email}",
                     notification.JobId, customer.User.Email);
+            }
+
+            // Send SignalR notification to customer
+            try
+            {
+                var customerGroup = $"customer-{customer.UserId}";
+                await _hubContext.Clients.Group(customerGroup).SendAsync("JobInProgress", new
+                {
+                    jobId = job.Id.ToString(),
+                    contractorName = contractor.Name,
+                    jobType = job.JobType.ToString()
+                });
+                _logger.LogInformation("SignalR notification sent to customer {CustomerId} for job in progress {JobId}",
+                    customer.UserId, job.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send SignalR notification to customer for job in progress {JobId}", job.Id);
+            }
+
+            // Send SignalR notification to dispatchers
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("JobStatusChanged", new
+                {
+                    jobId = job.Id.ToString(),
+                    status = "InProgress",
+                    jobType = job.JobType.ToString()
+                });
+                _logger.LogInformation("SignalR notification sent to dispatchers for job status change {JobId}", job.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send SignalR notification to dispatchers for job status change {JobId}", job.Id);
             }
         }
         catch (Exception ex)

@@ -76,7 +76,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("ContractorId", "Status")
                         .HasDatabaseName("IX_Assignments_ContractorId_Status");
 
-                    b.ToTable("Assignments");
+                    b.ToTable("Assignments", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.Contractor", b =>
@@ -160,7 +160,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("IsActive", "TradeType")
                         .HasDatabaseName("IX_Contractors_IsActive_TradeType");
 
-                    b.ToTable("Contractors");
+                    b.ToTable("Contractors", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.Customer", b =>
@@ -203,7 +203,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.DispatcherContractorList", b =>
@@ -242,7 +242,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("DispatcherId", "ContractorId")
                         .HasDatabaseName("IX_DispatcherContractorLists_DispatcherId_ContractorId");
 
-                    b.ToTable("DispatcherContractorLists");
+                    b.ToTable("DispatcherContractorLists", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.Job", b =>
@@ -305,7 +305,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("Status", "DesiredDateTime")
                         .HasDatabaseName("IX_Jobs_Status_DesiredDateTime");
 
-                    b.ToTable("Jobs");
+                    b.ToTable("Jobs", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.RefreshToken", b =>
@@ -351,7 +351,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_RefreshTokens_UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.Review", b =>
@@ -398,7 +398,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("ContractorId", "CreatedAt")
                         .HasDatabaseName("IX_Reviews_ContractorId_CreatedAt");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.User", b =>
@@ -451,7 +451,7 @@ namespace SmartScheduler.Infrastructure.Migrations
                     b.HasIndex("Role")
                         .HasDatabaseName("IX_Users_Role");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("SmartScheduler.Domain.Entities.Assignment", b =>

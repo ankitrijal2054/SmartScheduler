@@ -58,7 +58,15 @@ class CustomerService {
         data: JobCreationResponse;
         message: string;
       }>("/api/v1/jobs", request);
-      return response.data.data;
+
+      // Normalize IDs to strings
+      const normalizedData: JobCreationResponse = {
+        ...response.data.data,
+        id: String(response.data.data.id), // Convert number to string
+        customerId: String(response.data.data.customerId), // Convert number to string
+      };
+
+      return normalizedData;
     } catch (error) {
       throw this.handleError(error);
     }
@@ -81,22 +89,24 @@ class CustomerService {
 
       // Normalize response to JobDetail
       const job: JobDetail = {
-        id: jobData.id,
-        customerId: jobData.customerId,
+        id: String(jobData.id), // Convert number to string
+        customerId: String(jobData.customerId), // Convert number to string
         location: jobData.location,
         desiredDateTime: jobData.desiredDateTime,
         jobType: (jobData.jobType as any) || "Other",
         description: jobData.description,
         status: (jobData.status as any) || "Pending",
-        currentAssignedContractorId: jobData.currentAssignedContractorId,
+        currentAssignedContractorId: jobData.currentAssignedContractorId
+          ? String(jobData.currentAssignedContractorId)
+          : null, // Convert number to string or keep null
         createdAt: jobData.createdAt,
         updatedAt: jobData.updatedAt,
       };
 
       if (jobData.assignment) {
         job.assignment = {
-          id: jobData.assignment.id,
-          contractorId: jobData.assignment.contractorId,
+          id: String(jobData.assignment.id), // Convert number to string
+          contractorId: String(jobData.assignment.contractorId), // Convert number to string
           status: jobData.assignment.status,
           assignedAt: jobData.assignment.assignedAt,
           acceptedAt: jobData.assignment.acceptedAt || null,
@@ -107,7 +117,7 @@ class CustomerService {
 
       if (jobData.contractor) {
         job.contractor = {
-          id: jobData.contractor.id,
+          id: String(jobData.contractor.id), // Convert number to string
           name: jobData.contractor.name,
           rating: jobData.contractor.averageRating || null,
           reviewCount: jobData.contractor.reviewCount || 0,
@@ -152,7 +162,10 @@ class CustomerService {
    * @returns Submitted review with confirmation details
    * @throws Error if submission fails
    */
-  async submitRating(jobId: string, request: CreateReviewRequest): Promise<Review> {
+  async submitRating(
+    jobId: string,
+    request: CreateReviewRequest
+  ): Promise<Review> {
     try {
       const response = await this.axiosInstance.post<{
         data: Review;

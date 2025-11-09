@@ -7,12 +7,12 @@
 import React, { useState } from "react";
 import { Bell } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
-import { NotificationCenter } from "@/features/contractor/NotificationCenter";
+import { NotificationCenter } from "./NotificationCenter";
 
 export const NotificationBadge: React.FC = () => {
   const { notifications } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
-  const unreadCount = notifications.length;
+  const unreadCount = notifications.filter((n) => !n.isRead && !n.read).length;
 
   return (
     <>
@@ -36,6 +36,3 @@ export const NotificationBadge: React.FC = () => {
     </>
   );
 };
-
-
-

@@ -74,6 +74,6 @@ public class CreateJobDto
     /// <summary>
     /// Estimated duration of the job in hours.
     /// </summary>
-    public decimal EstimatedDurationHours { get; set; }
+    public decimal? EstimatedDurationHours { get; set; }
 }
 

@@ -14,6 +14,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NotificationToastManager } from "@/components/NotificationToastManager";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SignupPage } from "@/features/auth/SignupPage";
@@ -105,6 +106,7 @@ function App() {
     <Router>
       <AuthProvider>
         <NotificationProvider>
+          <NotificationToastManager />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />

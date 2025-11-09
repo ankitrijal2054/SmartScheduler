@@ -160,22 +160,24 @@ public class AuthController : ControllerBase
         // Hash password
         var passwordHash = _passwordHashingService.HashPassword(request.Password);
 
-        // Create new user
-        var user = new User
-        {
-            Email = request.Email.ToLower(),
-            PasswordHash = passwordHash,
-            Role = request.Role,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
-
-        // Create role-specific entity if needed
+        // Create new user and role-specific entity in a transaction
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
+            // Create new user
+            var user = new User
+            {
+                Email = request.Email.ToLower(),
+                PasswordHash = passwordHash,
+                Role = request.Role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.Users.Add(user);
+            await _dbContext.SaveChangesAsync();
+
+            // Create role-specific entity (mandatory for Customer and Contractor roles)
             if (request.Role == SmartScheduler.Domain.Enums.UserRole.Contractor)
             {
                 var contractor = new Contractor
@@ -211,31 +213,33 @@ public class AuthController : ControllerBase
             // Dispatcher role doesn't require a specific entity, just User record
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // Generate JWT and refresh token
+            var tokenResponse = _jwtTokenService.GenerateToken(user);
+
+            // Save refresh token to database
+            var refreshToken = new RefreshToken
+            {
+                UserId = user.Id,
+                Token = tokenResponse.RefreshToken!,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.RefreshTokens.Add(refreshToken);
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("User signed up successfully: {UserId} with role {Role}", user.Id, user.Role);
+
+            return CreatedAtAction(nameof(Signup), tokenResponse);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating role-specific entity for user: {UserId}", user.Id);
-            // Continue - user was created even if role entity creation failed
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error during signup for email: {Email}", request.Email);
+            return StatusCode(500, new { error = new { code = "SIGNUP_FAILED", message = "Failed to create account. Please try again.", statusCode = 500 } });
         }
-
-        // Generate JWT and refresh token
-        var tokenResponse = _jwtTokenService.GenerateToken(user);
-
-        // Save refresh token to database
-        var refreshToken = new RefreshToken
-        {
-            UserId = user.Id,
-            Token = tokenResponse.RefreshToken!,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("User signed up successfully: {UserId} with role {Role}", user.Id, user.Role);
-
-        return CreatedAtAction(nameof(Signup), tokenResponse);
     }
 
     /// <summary>

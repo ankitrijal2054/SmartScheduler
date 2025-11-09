@@ -107,13 +107,46 @@ export type NotificationMessageType =
  * Contractor Notification Types (Story 5.1, Story 5.5)
  * Used for contractor portal real-time notifications
  */
-export type NotificationType =
+export type ContractorNotificationType =
   | "NewJobAssigned"
   | "JobReassigned"
   | "JobCancelled"
   | "JobStatusUpdated"
   | "ScheduleUpdated"
   | "RatingReceived";
+
+/**
+ * Dispatcher Notification Types
+ * Used for dispatcher dashboard real-time notifications
+ */
+export type DispatcherNotificationType =
+  | "NewJobCreated"
+  | "JobAssigned"
+  | "JobReassigned"
+  | "JobStatusChanged"
+  | "ContractorUnavailable"
+  | "UrgentJobCreated";
+
+/**
+ * Customer Notification Types
+ * Used for customer dashboard real-time notifications
+ */
+export type CustomerNotificationType =
+  | "JobAssigned"
+  | "JobInProgress"
+  | "JobCompleted"
+  | "JobCancelled"
+  | "ContractorAssigned"
+  | "JobReassigned"
+  | "ScheduleUpdated";
+
+/**
+ * Union type for all notification types
+ */
+export type NotificationType =
+  | ContractorNotificationType
+  | DispatcherNotificationType
+  | CustomerNotificationType;
 
 export interface Notification {
   id: string;

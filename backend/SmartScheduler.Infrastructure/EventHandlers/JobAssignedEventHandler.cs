@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,7 @@ using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Events;
+using SmartScheduler.Infrastructure.Hubs;
 using SmartScheduler.Infrastructure.Persistence;
 
 namespace SmartScheduler.Infrastructure.EventHandlers;
@@ -20,17 +22,20 @@ public class JobAssignedEventHandler : INotificationHandler<JobAssignedEvent>
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<JobAssignedEventHandler> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public JobAssignedEventHandler(
         IEmailService emailService,
         ApplicationDbContext dbContext,
         ILogger<JobAssignedEventHandler> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHubContext<NotificationHub> hubContext)
     {
         _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
     }
 
     public async Task Handle(JobAssignedEvent notification, CancellationToken cancellationToken)
@@ -117,6 +122,41 @@ public class JobAssignedEventHandler : INotificationHandler<JobAssignedEvent>
             {
                 _logger.LogWarning("Email failed to send for Job {JobId} to {Email}",
                     notification.JobId, customer.User.Email);
+            }
+
+            // Send SignalR notification to customer
+            try
+            {
+                var customerGroup = $"customer-{customer.UserId}";
+                await _hubContext.Clients.Group(customerGroup).SendAsync("ContractorAssigned", new
+                {
+                    jobId = job.Id.ToString(),
+                    contractorName = contractor.Name,
+                    contractorRating = contractor.AverageRating,
+                    jobType = job.JobType.ToString()
+                });
+                _logger.LogInformation("SignalR notification sent to customer {CustomerId} for job {JobId}",
+                    customer.UserId, job.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send SignalR notification to customer for job {JobId}", job.Id);
+            }
+
+            // Send SignalR notification to dispatchers (all dispatchers see all jobs)
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("JobAssigned", new
+                {
+                    jobId = job.Id.ToString(),
+                    contractorName = contractor.Name,
+                    jobType = job.JobType.ToString()
+                });
+                _logger.LogInformation("SignalR notification sent to dispatchers for job {JobId}", job.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send SignalR notification to dispatchers for job {JobId}", job.Id);
             }
         }
         catch (Exception ex)

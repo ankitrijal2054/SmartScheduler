@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useJobs } from "@/hooks/useJobs";
+import { useDispatcherNotifications } from "@/hooks/useDispatcherNotifications";
 import { Job } from "@/types/Job";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { JobList } from "./JobList";
@@ -19,6 +20,9 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { jobs, loading, error, pagination, setPage, setSort, refreshJobs } =
     useJobs();
+
+  // Initialize dispatcher notifications
+  useDispatcherNotifications();
 
   // Dashboard tab state
   const [activeTab, setActiveTab] = useState<DashboardTab>("jobs");
@@ -73,6 +77,7 @@ export const Dashboard: React.FC = () => {
       <DashboardHeader
         title="Dispatcher Dashboard"
         subtitle={user?.email ? `Welcome, ${user.email}` : undefined}
+        showNotificationBadge={true}
       />
 
       {/* Main Content */}

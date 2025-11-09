@@ -1,6 +1,6 @@
 /**
  * NotificationContext
- * Global state for managing contractor notifications
+ * Global state for managing notifications for all user roles
  * Provides notification list, add, dismiss, and clear all functionality
  */
 
@@ -9,8 +9,10 @@ import React, {
   useReducer,
   useCallback,
   useEffect,
+  useState,
 } from "react";
 import { Notification, NotificationType } from "@/types/NotificationMessages";
+import { config } from "@/utils/config";
 
 export interface NotificationContextType {
   notifications: Notification[];
@@ -53,16 +55,61 @@ const notificationReducer = (
   }
 };
 
-const STORAGE_KEY = "contractor_notifications";
+// Get storage key based on user role
+const getStorageKey = (role?: string): string => {
+  const roleKey = role?.toLowerCase() || "user";
+  return `${roleKey}_notifications`;
+};
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [notifications, dispatch] = useReducer(notificationReducer, []);
+  const [storageKey, setStorageKey] = useState<string>("user_notifications");
 
-  // Load notifications from localStorage on mount
+  // Update storage key when user role changes
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const updateStorageKey = () => {
+      const token = localStorage.getItem(config.auth.jwtStorageKey);
+      if (token) {
+        try {
+          // Decode JWT to get role
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          const role =
+            payload.role ||
+            payload[
+              "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ];
+          setStorageKey(getStorageKey(role));
+        } catch {
+          // Fallback to default
+          setStorageKey("user_notifications");
+        }
+      } else {
+        setStorageKey("user_notifications");
+      }
+    };
+
+    updateStorageKey();
+
+    // Listen for storage changes (when user logs in/out)
+    const handleStorageChange = () => {
+      updateStorageKey();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    // Also check periodically for auth changes
+    const interval = setInterval(updateStorageKey, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Load notifications from localStorage on mount or when storage key changes
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Notification[];
@@ -70,13 +117,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (err) {
         console.error("Failed to load notifications from storage:", err);
       }
+    } else {
+      // Clear notifications if switching to a different role
+      dispatch({ type: "CLEAR_ALL" });
     }
-  }, []);
+  }, [storageKey]);
 
   // Persist notifications to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-  }, [notifications]);
+    localStorage.setItem(storageKey, JSON.stringify(notifications));
+  }, [notifications, storageKey]);
 
   const addNotification = useCallback(
     (

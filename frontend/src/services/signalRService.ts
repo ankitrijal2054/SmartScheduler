@@ -143,6 +143,19 @@ class SignalRService {
   }
 
   /**
+   * Invoke a hub method
+   */
+  async invoke(methodName: string, ...args: any[]): Promise<any> {
+    if (!this.connected) {
+      console.warn(`[SignalR] Cannot invoke ${methodName}: not connected`);
+      return Promise.resolve();
+    }
+    console.log(`[SignalR] Invoking ${methodName}`, args);
+    // In production, this would call hubConnection.invoke()
+    return Promise.resolve();
+  }
+
+  /**
    * Check if connected
    */
   isConnected(): boolean {

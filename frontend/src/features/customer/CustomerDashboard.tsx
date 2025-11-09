@@ -6,11 +6,19 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuthContext";
+import { useJobs } from "@/hooks/useJobs";
+import { useCustomerNotifications } from "@/hooks/useCustomerNotifications";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { CustomerJobCard } from "./CustomerJobCard";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 export const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { jobs, loading, error, pagination, setPage } = useJobs();
+
+  // Initialize customer notifications
+  useCustomerNotifications();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,6 +26,7 @@ export const CustomerDashboard: React.FC = () => {
       <DashboardHeader
         title="Customer Dashboard"
         subtitle="Manage your jobs and track their progress"
+        showNotificationBadge={true}
       />
 
       {/* Main Content */}
@@ -77,10 +86,11 @@ export const CustomerDashboard: React.FC = () => {
               My Jobs
             </h3>
             <p className="text-gray-600 text-sm">
-              View and track all your submitted jobs
-            </p>
-            <p className="text-indigo-600 text-sm mt-2 font-medium">
-              Coming soon...
+              {loading
+                ? "Loading..."
+                : `${jobs.length} ${
+                    jobs.length === 1 ? "job" : "jobs"
+                  } submitted`}
             </p>
           </div>
 
@@ -112,21 +122,96 @@ export const CustomerDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Recent Activity Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Recent Activity
-          </h2>
-          <div className="text-center py-12 text-gray-500">
-            <p>No recent activity to display</p>
+        {/* My Jobs Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-gray-900">My Jobs</h2>
             <button
               onClick={() => navigate("/customer/submit-job")}
-              className="mt-4 text-indigo-600 hover:text-indigo-700 font-semibold"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
             >
-              Submit your first job →
+              Submit New Job
             </button>
           </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+              <p className="font-semibold">Error loading jobs</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : !jobs || jobs.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg mb-2">No jobs yet</p>
+              <p className="text-sm mb-4">
+                Submit your first job to get started!
+              </p>
+              <button
+                onClick={() => navigate("/customer/submit-job")}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
+              >
+                Submit your first job →
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {jobs.map((job) => (
+                  <CustomerJobCard key={job.id} job={job} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Page{" "}
+                    <span className="font-semibold">{pagination.page}</span> of{" "}
+                    <span className="font-semibold">
+                      {pagination.totalPages}
+                    </span>{" "}
+                    (<span className="font-semibold">{pagination.total}</span>{" "}
+                    total)
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="Previous page"
+                    >
+                      ← Previous
+                    </button>
+                    <button
+                      onClick={() => setPage(pagination.page + 1)}
+                      disabled={pagination.page >= pagination.totalPages}
+                      className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="Next page"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
+
+        {/* Recent Activity Section - Show if there are jobs */}
+        {jobs && jobs.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              Recent Activity
+            </h2>
+            <div className="text-center py-8 text-gray-500">
+              <p>Activity tracking coming soon</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

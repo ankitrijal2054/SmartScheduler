@@ -35,7 +35,10 @@ public class AuthorizationService : IAuthorizationService
         {
             if (typeof(T) == typeof(Job))
             {
-                return data.Where(j => ((Job)(object)j).CustomerId == userId);
+                // Need to filter by Customer.UserId, not CustomerId
+                // Since the query already includes Customer, we can access it via navigation property
+                return data.Where(j => ((Job)(object)j).Customer != null && 
+                                      ((Job)(object)j).Customer!.UserId == userId);
             }
         }
 
