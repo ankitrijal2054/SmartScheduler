@@ -110,5 +110,38 @@ public class DatabaseController : ControllerBase
             return StatusCode(500, new { status = "error", error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Seeds 50 contractor profiles with Austin, TX addresses.
+    /// Creates users with email format: testcontractor1@testemail.com through testcontractor50@testemail.com
+    /// Password for all: "test1234"
+    /// Development-only endpoint for populating test data.
+    /// </summary>
+    [HttpPost("seed-contractors")]
+    public IActionResult SeedContractors()
+    {
+        try
+        {
+            var beforeCount = _context.Contractors.Count();
+            DatabaseSeeder.Seed50Contractors(_context);
+            var afterCount = _context.Contractors.Count();
+            var added = afterCount - beforeCount;
+
+            _logger.LogInformation("Seeded {Count} contractors. Total contractors: {Total}", added, afterCount);
+            return Ok(new
+            {
+                success = true,
+                message = $"Successfully seeded {added} contractors",
+                totalContractors = afterCount,
+                added = added,
+                note = "All contractors use password: test1234"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to seed contractors");
+            return StatusCode(500, new { success = false, error = ex.Message });
+        }
+    }
 }
 

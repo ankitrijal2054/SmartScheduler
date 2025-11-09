@@ -139,14 +139,14 @@ export const Dashboard: React.FC = () => {
 
             {/* SignalR Integration Placeholder */}
             {/* TODO: Replace polling with SignalR in Story 6.6 */}
-            {/* When NotificationContext receives a new job event, call refreshJobs() */}
+            {/* When NotificationContext receives a new job event, call refreshJobs() 
             <div className="mt-8 rounded-md border-l-4 border-blue-400 bg-blue-50 p-4">
               <p className="text-sm text-blue-700">
                 💡 <strong>Note:</strong> Job list updates via polling every 30
                 seconds. This will be replaced with real-time WebSocket updates
                 in Story 6.6.
               </p>
-            </div>
+            </div>*/}
           </div>
         )}
 
