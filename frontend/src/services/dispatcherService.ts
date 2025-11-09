@@ -123,7 +123,7 @@ class DispatcherService {
               jobId: request.jobId,
               contractorListOnly: request.contractor_list_only ?? false,
             },
-            timeout: 5000, // 5 second timeout for recommendations API
+            timeout: 30000, // 30 second timeout for recommendations API (processing 50+ contractors can take time)
             cancelToken,
           }
         );
@@ -184,17 +184,39 @@ class DispatcherService {
     cancelToken?: CancelToken
   ): Promise<AssignmentResponse> {
     try {
-      const response = await this.axiosInstance.post<{
-        data: AssignmentResponse;
-      }>(`/api/v1/dispatcher/jobs/${jobId}/assign`, request, {
-        timeout: 5000, // 5 second timeout for assignment API
-        cancelToken,
-      });
-      return response.data.data;
+      // Backend expects contractorId as a query parameter, not in the request body
+      // Backend response structure: { message, assignmentId, jobId, contractorId }
+      interface BackendAssignmentResponse {
+        message: string;
+        assignmentId: number;
+        jobId: number;
+        contractorId: number;
+      }
+
+      const response = await this.axiosInstance.post<BackendAssignmentResponse>(
+        `/api/v1/dispatcher/jobs/${jobId}/assign`,
+        {}, // Empty body since contractorId is in query params
+        {
+          params: {
+            contractorId: request.contractorId,
+          },
+          timeout: 5000, // 5 second timeout for assignment API
+          cancelToken,
+        }
+      );
+
+      // Map backend response to frontend format
+      return {
+        assignmentId: response.data.assignmentId.toString(),
+        jobId: response.data.jobId.toString(),
+        contractorId: response.data.contractorId.toString(),
+        status: "Pending" as const, // Default status for new assignments
+        createdAt: new Date().toISOString(), // Use current time since backend doesn't provide it
+      };
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Assignment request cancelled");
-        throw new Error("Assignment request cancelled");
+        // Silently handle cancelled requests - they're expected when component unmounts or new request is initiated
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleAssignmentError(error);
     }
@@ -222,8 +244,8 @@ class DispatcherService {
       return response.data.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Reassignment request cancelled");
-        throw new Error("Reassignment request cancelled");
+        // Silently handle cancelled requests - they're expected when component unmounts or new request is initiated
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleReassignmentError(error);
     }

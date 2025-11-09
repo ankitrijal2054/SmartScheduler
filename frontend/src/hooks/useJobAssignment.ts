@@ -27,7 +27,9 @@ export const useJobAssignment = () => {
   });
 
   // CancelToken for cleanup
-  const cancelTokenSourceRef = useRef(axios.CancelToken.source());
+  const cancelTokenSourceRef = useRef<ReturnType<
+    typeof axios.CancelToken.source
+  > | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
@@ -37,6 +39,14 @@ export const useJobAssignment = () => {
    */
   const assignJob = useCallback(
     async (jobId: string, contractorId: string): Promise<void> => {
+      // Cancel any previous request
+      if (cancelTokenSourceRef.current) {
+        cancelTokenSourceRef.current.cancel("New assignment request initiated");
+      }
+
+      // Create new cancel token for this request
+      cancelTokenSourceRef.current = axios.CancelToken.source();
+
       try {
         // Reset state and start loading
         setState((prev) => ({
@@ -68,15 +78,21 @@ export const useJobAssignment = () => {
         }));
       } catch (err) {
         // Handle error (axios cancellation is not an error in this case)
-        if (!axios.isCancel(err)) {
-          const errorMessage =
-            err instanceof Error ? err.message : "Failed to assign job";
-          setState((prev) => ({
-            ...prev,
-            isAssigning: false,
-            error: errorMessage,
-          }));
+        if (axios.isCancel(err)) {
+          // Silently handle cancelled requests - they're expected when component unmounts or new request is initiated
+          return;
         }
+
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to assign job";
+        setState((prev) => ({
+          ...prev,
+          isAssigning: false,
+          error: errorMessage,
+        }));
+      } finally {
+        // Clear cancel token after request completes
+        cancelTokenSourceRef.current = null;
       }
     },
     []
@@ -86,6 +102,7 @@ export const useJobAssignment = () => {
    * Reset assignment state
    */
   const reset = useCallback(() => {
+    // Don't cancel in-progress requests when resetting - let them complete
     setState({
       isAssigning: false,
       error: null,
@@ -126,8 +143,10 @@ export const useJobAssignment = () => {
    */
   useEffect(() => {
     return () => {
-      // Cancel any pending requests
-      cancelTokenSourceRef.current.cancel("Component unmounted");
+      // Cancel any pending requests only on unmount
+      if (cancelTokenSourceRef.current) {
+        cancelTokenSourceRef.current.cancel("Component unmounted");
+      }
       abortControllerRef.current?.abort();
     };
   }, []);

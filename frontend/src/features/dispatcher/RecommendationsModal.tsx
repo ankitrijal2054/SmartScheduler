@@ -3,7 +3,7 @@
  * Modal/Dialog for displaying contractor recommendations with sorting and filtering
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   RecommendationRequest,
   RecommendedContractor,
@@ -203,38 +203,68 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     }
   };
 
+  // Track which success messages we've already shown to prevent duplicate toasts
+  const shownSuccessRef = useRef<string | null>(null);
+
   // Show toast for assignment/reassignment success
   useEffect(() => {
-    if (successMessage && selectedContractor) {
+    const currentMessage = isReassignmentMode
+      ? reassignmentSuccess
+      : successMessage;
+
+    if (currentMessage && selectedContractor) {
       const action = isReassignmentMode ? "reassigned to" : "assigned to";
-      showSuccess(`Job ${action} ${selectedContractor.name}`);
+      const message = `Job ${action} ${selectedContractor.name}`;
+
+      // Only show if we haven't shown this exact message before
+      if (message !== shownSuccessRef.current) {
+        shownSuccessRef.current = message;
+        showSuccess(message);
+      }
     }
-    if (reassignmentSuccess && selectedContractor) {
-      const action = isReassignmentMode ? "reassigned to" : "assigned to";
-      showSuccess(`Job ${action} ${selectedContractor.name}`);
+
+    // Reset success ref when message clears
+    if (!currentMessage) {
+      shownSuccessRef.current = null;
     }
   }, [
     successMessage,
     reassignmentSuccess,
     selectedContractor,
-    showSuccess,
     isReassignmentMode,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // showSuccess is intentionally omitted - it's stable from useToast hook
   ]);
+
+  // Track which errors we've already shown to prevent duplicate toasts
+  const shownErrorRef = useRef<string | null>(null);
 
   // Show toast for assignment/reassignment error
   useEffect(() => {
-    if (assignmentError && selectedContractor && !isReassignmentMode) {
-      showError(assignmentError);
+    const currentError = isReassignmentMode
+      ? reassignmentError
+      : assignmentError;
+
+    if (
+      currentError &&
+      selectedContractor &&
+      currentError !== shownErrorRef.current
+    ) {
+      shownErrorRef.current = currentError;
+      showError(currentError);
     }
-    if (reassignmentError && selectedContractor && isReassignmentMode) {
-      showError(reassignmentError);
+
+    // Reset error ref when error clears
+    if (!currentError) {
+      shownErrorRef.current = null;
     }
   }, [
     assignmentError,
     reassignmentError,
     selectedContractor,
-    showError,
     isReassignmentMode,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // showError is intentionally omitted - it's stable from useToast hook
   ]);
 
   // Handle assignment/reassignment success
@@ -275,22 +305,26 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity"
+        className={`fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity ${
+          confirmationOpen ? "pointer-events-none" : ""
+        }`}
         onClick={handleBackdropClick}
         role="presentation"
       />
 
       {/* Modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
+          confirmationOpen ? "pointer-events-none" : ""
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="recommendations-title"
         aria-describedby="recommendations-desc"
       >
-        <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
           {/* Header */}
-          <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-6 py-4">
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h2
@@ -352,7 +386,7 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6">
             {/* Loading State */}
             {loading && (
               <div className="space-y-4">

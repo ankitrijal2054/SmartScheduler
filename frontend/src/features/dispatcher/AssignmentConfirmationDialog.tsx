@@ -75,25 +75,36 @@ export const AssignmentConfirmationDialog: React.FC<
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isAssigning, onCancel]);
 
-  if (!isOpen || !contractor || !job) return null;
+  if (!isOpen || !contractor) return null;
+
+  // If job is missing, we can still show the dialog with limited info
+  const hasJobDetails = !!job;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 z-[60] bg-black bg-opacity-50 transition-opacity"
         role="presentation"
+        onClick={(e) => {
+          if (!isAssigning) {
+            onCancel();
+          }
+        }}
       />
 
       {/* Dialog */}
       <div
-        className="fixed inset-0 z-60 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="assignment-dialog-title"
         aria-describedby="assignment-dialog-desc"
       >
-        <div className="w-full max-w-md transform rounded-lg bg-white shadow-xl transition-all">
+        <div
+          className="w-full max-w-md transform rounded-lg bg-white shadow-xl transition-all pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div className="border-b border-gray-200 px-6 py-4">
             <h2
@@ -170,19 +181,22 @@ export const AssignmentConfirmationDialog: React.FC<
                 </div>
 
                 {/* Job Details */}
-                <div className="rounded-md bg-green-50 p-4 space-y-2">
-                  <p className="text-xs font-semibold text-green-900">
-                    JOB DETAILS
-                  </p>
-                  <p className="text-sm text-green-800">
-                    <span className="font-semibold">{job.jobType}</span> - Job
-                    ID: {job.id.slice(0, 8)}...
-                  </p>
-                  <p className="text-sm text-green-800">📍 {job.location}</p>
-                  <p className="text-sm text-green-800">
-                    🕐 {format(new Date(job.desiredDateTime), "MMM d, h:mm a")}
-                  </p>
-                </div>
+                {hasJobDetails && (
+                  <div className="rounded-md bg-green-50 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-green-900">
+                      JOB DETAILS
+                    </p>
+                    <p className="text-sm text-green-800">
+                      <span className="font-semibold">{job!.jobType}</span> -
+                      Job ID: {job!.id.slice(0, 8)}...
+                    </p>
+                    <p className="text-sm text-green-800">📍 {job!.location}</p>
+                    <p className="text-sm text-green-800">
+                      🕐{" "}
+                      {format(new Date(job!.desiredDateTime), "MMM d, h:mm a")}
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </div>

@@ -47,37 +47,56 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IGeocodingService, GoogleMapsGeocodingService>();
 
         // Register Distance Service with Google Maps API integration and Redis caching
-        var googleMapsApiKey = configuration["GoogleMaps:ApiKey"];
+        var googleMapsApiKey = configuration["GoogleMaps:ApiKey"] ?? "dummy-key";
         var redisConnectionString = configuration["Redis:ConnectionString"];
 
-        // Only register distance services if configuration is available
-        if (!string.IsNullOrEmpty(googleMapsApiKey) && !string.IsNullOrEmpty(redisConnectionString))
-        {
-            services.AddHttpClient<GoogleMapsDistanceService>()
-                .SetHandlerLifetime(TimeSpan.FromMinutes(5));
-
-            services.AddScoped(provider =>
-                new GoogleMapsDistanceService(
-                    provider.GetRequiredService<HttpClient>(),
-                    googleMapsApiKey,
-                    provider.GetRequiredService<ILogger<GoogleMapsDistanceService>>()
-                )
-            );
-
-            // Configure Redis distributed cache
-            services.AddStackExchangeRedisCache(options =>
+        // Always register GoogleMapsDistanceService (will use Haversine fallback if API key invalid)
+        services.AddHttpClient<GoogleMapsDistanceService>()
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+            .ConfigureHttpClient(client =>
             {
-                options.Configuration = redisConnectionString;
+                client.Timeout = TimeSpan.FromSeconds(10); // 10 second timeout for Google Maps API calls
             });
 
-            // Register CachedDistanceService as the primary IDistanceService implementation
+        services.AddScoped(provider =>
+            new GoogleMapsDistanceService(
+                provider.GetRequiredService<HttpClient>(),
+                googleMapsApiKey,
+                provider.GetRequiredService<ILogger<GoogleMapsDistanceService>>()
+            )
+        );
+
+        // Register Redis cache if connection string is available
+        if (!string.IsNullOrEmpty(redisConnectionString))
+        {
+            try
+            {
+                services.AddStackExchangeRedisCache(options =>
+                {
+                    options.Configuration = redisConnectionString;
+                });
+
+                // Register CachedDistanceService as the primary IDistanceService implementation
+                services.AddScoped<IDistanceService>(provider =>
+                    new CachedDistanceService(
+                        provider.GetRequiredService<GoogleMapsDistanceService>(),
+                        provider.GetRequiredService<IDistributedCache>(),
+                        provider.GetRequiredService<ILogger<CachedDistanceService>>()
+                    )
+                );
+            }
+            catch
+            {
+                // If Redis fails to configure, fall back to direct GoogleMapsDistanceService
+                services.AddScoped<IDistanceService>(provider =>
+                    provider.GetRequiredService<GoogleMapsDistanceService>());
+            }
+        }
+        else
+        {
+            // No Redis configured, use GoogleMapsDistanceService directly
             services.AddScoped<IDistanceService>(provider =>
-                new CachedDistanceService(
-                    provider.GetRequiredService<GoogleMapsDistanceService>(),
-                    provider.GetRequiredService<IDistributedCache>(),
-                    provider.GetRequiredService<ILogger<CachedDistanceService>>()
-                )
-            );
+                provider.GetRequiredService<GoogleMapsDistanceService>());
         }
 
         return services;
