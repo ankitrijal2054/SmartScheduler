@@ -4,7 +4,12 @@
  * Provides notification list, add, dismiss, and clear all functionality
  */
 
-import React, { createContext, useReducer, useCallback, useEffect } from "react";
+import React, {
+  createContext,
+  useReducer,
+  useCallback,
+  useEffect,
+} from "react";
 import { Notification, NotificationType } from "@/types/NotificationMessages";
 
 export interface NotificationContextType {
@@ -12,7 +17,8 @@ export interface NotificationContextType {
   addNotification: (
     message: string,
     type: NotificationType,
-    jobId?: string
+    jobId?: string,
+    title?: string
   ) => void;
   dismissNotification: (id: string) => void;
   clearAll: () => void;
@@ -73,13 +79,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [notifications]);
 
   const addNotification = useCallback(
-    (message: string, type: NotificationType, jobId?: string) => {
+    (
+      message: string,
+      type: NotificationType,
+      jobId?: string,
+      title?: string
+    ) => {
       const notification: Notification = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type,
+        title: title || type,
         message,
         jobId,
         createdAt: new Date().toISOString(),
+        isRead: false,
       };
       dispatch({ type: "ADD", payload: notification });
     },
@@ -107,6 +120,3 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     </NotificationContext.Provider>
   );
 };
-
-
-

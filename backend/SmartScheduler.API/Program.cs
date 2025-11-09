@@ -4,6 +4,7 @@ using SmartScheduler.Domain.Extensions;
 using SmartScheduler.Application.Extensions;
 using SmartScheduler.Infrastructure.Extensions;
 using SmartScheduler.Infrastructure.Persistence;
+using SmartScheduler.Infrastructure.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -24,6 +25,7 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 
 // Load configuration with fallbacks
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
@@ -145,6 +147,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/notifications");
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))

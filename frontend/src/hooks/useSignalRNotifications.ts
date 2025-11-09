@@ -10,6 +10,7 @@ import { useAuthContext } from "@/hooks/useAuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { signalRService } from "@/services/signalRService";
 import { NotificationType } from "@/types/NotificationMessages";
+import { config } from "@/utils/config";
 
 interface UseSignalRNotificationsState {
   isConnected: boolean;
@@ -27,16 +28,20 @@ export const useSignalRNotifications = () => {
     error: null,
   });
   const reconnectCountRef = useRef(0);
-  const reconnectTimeoutRef = useRef<number>();
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   const handleNewJobAssigned = useCallback(
     (data: {
       jobId: string;
       jobType: string;
       location: string;
-      scheduledTime: string;
+      scheduledDateTime: string;
     }) => {
-      const message = `New ${data.jobType} job at ${data.location}`;
+      const message = `New ${data.jobType} job at ${
+        data.location
+      } scheduled for ${new Date(data.scheduledDateTime).toLocaleString()}`;
       addNotification(message, "NewJobAssigned", data.jobId);
 
       // Optional: Play notification sound
@@ -55,23 +60,35 @@ export const useSignalRNotifications = () => {
   );
 
   const handleJobReassigned = useCallback(
-    (data: { jobId: string; reason?: string }) => {
-      addNotification(
-        "Your assignment has been reassigned",
-        "JobReassigned",
-        data.jobId
-      );
+    (data: { jobId: string; newContractorName: string; reason?: string }) => {
+      const message = data.reason
+        ? `Your assignment has been reassigned: ${data.reason}`
+        : `Your assignment has been reassigned to ${data.newContractorName}`;
+      addNotification(message, "JobReassigned", data.jobId);
     },
     [addNotification]
   );
 
   const handleJobCancelled = useCallback(
     (data: { jobId: string; reason?: string }) => {
-      addNotification(
-        "A job assignment was cancelled",
-        "JobCancelled",
-        data.jobId
-      );
+      const message = data.reason
+        ? `Job cancelled: ${data.reason}`
+        : "Your job has been cancelled";
+      addNotification(message, "JobCancelled", data.jobId);
+    },
+    [addNotification]
+  );
+
+  const handleScheduleUpdated = useCallback(
+    (data: {
+      jobId: string;
+      newScheduledDateTime: string;
+      oldScheduledDateTime: string;
+    }) => {
+      const oldTime = new Date(data.oldScheduledDateTime).toLocaleString();
+      const newTime = new Date(data.newScheduledDateTime).toLocaleString();
+      const message = `Your schedule has been updated from ${oldTime} to ${newTime}`;
+      addNotification(message, "ScheduleUpdated", data.jobId);
     },
     [addNotification]
   );
@@ -108,11 +125,16 @@ export const useSignalRNotifications = () => {
       );
       signalRService.on("JobReassigned", handleJobReassigned);
       signalRService.on("JobCancelled", handleJobCancelled);
+      signalRService.on("ScheduleUpdated", handleScheduleUpdated);
       signalRService.on("JobStatusUpdated", handleJobStatusUpdated);
       signalRService.on("RatingReceived", handleRatingReceived);
 
-      await signalRService.connect();
-      await signalRService.joinGroup(`contractor-${user.id}`);
+      // Connect to SignalR notification hub
+      await signalRService.connect({
+        url: `${config.api.baseUrl}/notifications`,
+        reconnectInterval: 5000,
+        maxRetries: 5,
+      });
 
       reconnectCountRef.current = 0;
       setState({ isConnected: true, error: null });
@@ -138,6 +160,7 @@ export const useSignalRNotifications = () => {
     handleNewJobAssigned,
     handleJobReassigned,
     handleJobCancelled,
+    handleScheduleUpdated,
     handleJobStatusUpdated,
     handleRatingReceived,
   ]);
