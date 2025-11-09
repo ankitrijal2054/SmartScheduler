@@ -7,6 +7,7 @@
 import axios from "axios";
 import { config } from "@/utils/config";
 import { Assignment } from "@/types/Assignment";
+import { JobDetails } from "@/types/JobDetails";
 
 const api = axios.create({
   baseURL: config.apiBaseUrl,
@@ -52,9 +53,7 @@ export const contractorService = {
   /**
    * Get detailed information about a specific assignment
    */
-  async getAssignmentDetails(
-    assignmentId: string
-  ): Promise<
+  async getAssignmentDetails(assignmentId: string): Promise<
     Assignment & {
       jobType?: string;
       location?: string;
@@ -66,6 +65,17 @@ export const contractorService = {
     }
   > {
     const response = await api.get(
+      `/api/v1/contractor/assignments/${assignmentId}`
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get complete job details for modal display (Story 5.2)
+   * Includes job info, customer profile, and past job history
+   */
+  async getJobDetails(assignmentId: string): Promise<JobDetails> {
+    const response = await api.get<{ data: JobDetails }>(
       `/api/v1/contractor/assignments/${assignmentId}`
     );
     return response.data.data;
@@ -92,6 +102,3 @@ export const contractorService = {
     });
   },
 };
-
-
-

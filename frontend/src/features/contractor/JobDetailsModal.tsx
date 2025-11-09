@@ -1,38 +1,154 @@
 /**
  * JobDetailsModal Component
  * Displays full details of a job assignment in a modal
- * Placeholder for Story 5.2 acceptance/decline workflow
+ * Includes accept/decline workflow with customer profile and history
+ * Story 5.2: Job Details Modal & Accept/Decline Workflow
  */
 
-import React from "react";
-import { X, MapPin, Clock, User, DollarSign } from "lucide-react";
-import { Assignment } from "@/types/Assignment";
-import { format } from "date-fns";
+import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { useJobDetails } from "@/hooks/useJobDetails";
+import { useAcceptDeclineJob } from "@/hooks/useAcceptDeclineJob";
+import { JobInfoSection } from "@/components/shared/JobInfoSection";
+import { CustomerProfileCard } from "./CustomerProfileCard";
+import { DeclineReasonModal } from "./DeclineReasonModal";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { Toast } from "@/components/shared/Toast";
 
 interface JobDetailsModalProps {
-  assignment: Assignment & {
-    jobType?: string;
-    location?: string;
-    scheduledTime?: string;
-    customerName?: string;
-    description?: string;
-    estimatedDuration?: number;
-    estimatedPay?: number;
-  };
+  assignmentId: string | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
+type ToastType = "success" | "error" | "info";
+
 export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
-  assignment,
+  assignmentId,
   isOpen,
   onClose,
 }) => {
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [toast, setToast] = useState<{
+    type: ToastType;
+    message: string;
+  } | null>(null);
+
+  // Fetch job details
+  const { jobDetails, loading, error, refetch } = useJobDetails(
+    isOpen ? assignmentId : null
+  );
+
+  // Handle accept/decline
+  const {
+    isLoading,
+    error: actionError,
+    acceptJob,
+    declineJob,
+  } = useAcceptDeclineJob();
+
+  // Close toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   if (!isOpen) return null;
 
-  const scheduledDate = assignment.scheduledTime
-    ? new Date(assignment.scheduledTime)
-    : null;
+  const handleAccept = async () => {
+    if (!assignmentId) return;
+
+    try {
+      await acceptJob(assignmentId);
+      setToast({ type: "success", message: "Job accepted! 🎉" });
+      setTimeout(onClose, 500);
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Failed to accept job. Please try again.",
+      });
+    }
+  };
+
+  const handleDeclineConfirm = async (reason?: string) => {
+    if (!assignmentId) return;
+
+    try {
+      await declineJob(assignmentId, reason);
+      setToast({ type: "success", message: "Job declined." });
+      setShowDeclineModal(false);
+      setTimeout(onClose, 500);
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: "Failed to decline job. Please try again.",
+      });
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-8 flex items-center justify-center">
+            <LoadingSpinner size="lg" />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+          onClick={onClose}
+          role="presentation"
+        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Error</h2>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-red-600 text-sm">{error}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => refetch()}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!jobDetails) {
+    return null;
+  }
 
   return (
     <>
@@ -45,135 +161,115 @@ export const JobDetailsModal: React.FC<JobDetailsModalProps> = ({
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-96 overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
-            <h2 className="text-lg font-semibold text-gray-900">Job Details</h2>
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+            <h2 className="text-xl font-bold text-gray-900">Job Details</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition"
-              aria-label="Close"
+              disabled={isLoading}
+              className="text-gray-400 hover:text-gray-600 transition disabled:opacity-50"
+              aria-label="Close modal"
             >
               <X size={20} />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-6">
-            {/* Job Type and Status */}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                  {assignment.jobType || "General Job"}
-                </span>
-                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
-                  {assignment.status}
-                </span>
-              </div>
-            </div>
+          <div className="p-6 space-y-8">
+            {/* Job Information */}
+            <section>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                Job Information
+              </h3>
+              <JobInfoSection jobDetails={jobDetails} showDescription={true} />
+            </section>
 
-            {/* Location */}
-            <div>
-              <div className="flex items-start gap-3">
-                <MapPin size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Location</p>
-                  <p className="text-base text-gray-900">
-                    {assignment.location || "Location TBD"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Scheduled Time */}
-            {scheduledDate && (
-              <div>
-                <div className="flex items-start gap-3">
-                  <Clock size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Scheduled Time
-                    </p>
-                    <p className="text-base text-gray-900">
-                      {format(scheduledDate, "EEEE, MMMM d, yyyy 'at' h:mm a")}
-                    </p>
-                    {assignment.estimatedDuration && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        ~{assignment.estimatedDuration} hours
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Customer Name */}
-            <div>
-              <div className="flex items-start gap-3">
-                <User size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Customer</p>
-                  <p className="text-base text-gray-900">
-                    {assignment.customerName || "Customer"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Estimated Pay */}
-            {assignment.estimatedPay && (
-              <div>
-                <div className="flex items-start gap-3">
-                  <DollarSign size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Estimated Pay
-                    </p>
-                    <p className="text-base text-gray-900">
-                      ${assignment.estimatedPay.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Description */}
-            {assignment.description && (
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-2">
-                  Description
-                </p>
-                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                  {assignment.description}
-                </p>
-              </div>
-            )}
+            {/* Customer Profile */}
+            <section>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                Customer Information
+              </h3>
+              <CustomerProfileCard
+                customer={jobDetails.customer}
+                pastReviews={jobDetails.pastReviews}
+              />
+            </section>
           </div>
 
-          {/* Actions (Placeholder for Story 5.2) */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+          {/* Actions Footer */}
+          <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3 sticky bottom-0">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              disabled={isLoading}
+              className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              aria-label="Close without action"
             >
               Close
             </button>
-            {assignment.status === "Pending" && (
+
+            {jobDetails.status === "Pending" && (
               <>
-                <button className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
-                  Decline
+                <button
+                  onClick={() => setShowDeclineModal(true)}
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  aria-label="Decline job"
+                >
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" className="!text-white" />
+                      Declining...
+                    </>
+                  ) : (
+                    "Decline"
+                  )}
                 </button>
-                <button className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition">
-                  Accept
+
+                <button
+                  onClick={handleAccept}
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  aria-label="Accept job"
+                >
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" className="!text-white" />
+                      Accepting...
+                    </>
+                  ) : (
+                    "Accept"
+                  )}
                 </button>
               </>
+            )}
+
+            {jobDetails.status !== "Pending" && (
+              <div className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg flex items-center justify-center">
+                Status:{" "}
+                <span className="ml-2 font-semibold">{jobDetails.status}</span>
+              </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Decline Reason Modal */}
+      <DeclineReasonModal
+        isOpen={showDeclineModal}
+        isLoading={isLoading}
+        onConfirm={handleDeclineConfirm}
+        onCancel={() => setShowDeclineModal(false)}
+      />
+
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   );
 };
-
-
-
