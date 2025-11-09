@@ -11,11 +11,21 @@ import { JobStatusBadge } from "@/components/shared/JobStatusBadge";
 interface JobCardProps {
   job: Job;
   onClick?: (job: Job) => void;
+  onGetRecommendations?: (job: Job) => void;
 }
 
-export const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
+export const JobCard: React.FC<JobCardProps> = ({
+  job,
+  onClick,
+  onGetRecommendations,
+}) => {
   const handleClick = () => {
     onClick?.(job);
+  };
+
+  const handleGetRecommendations = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onGetRecommendations?.(job);
   };
 
   const formattedDate = format(
@@ -79,13 +89,23 @@ export const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
           </p>
         </div>
 
-        {/* Status & Contractor */}
-        <div className="flex flex-col items-start justify-center">
+        {/* Status, Contractor & Actions */}
+        <div className="flex flex-col items-start justify-center gap-2">
           <JobStatusBadge
             status={job.status}
             contractorName={job.assignedContractorName}
             contractorRating={job.assignedContractorRating}
           />
+          {job.status === "Pending" && (
+            <button
+              onClick={handleGetRecommendations}
+              className="rounded-md bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+              aria-label="Get contractor recommendations for this job"
+              type="button"
+            >
+              Get Recommendations
+            </button>
+          )}
         </div>
       </div>
     </div>

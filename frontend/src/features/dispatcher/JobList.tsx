@@ -16,6 +16,7 @@ interface JobListProps {
   error: string | null;
   pagination: PaginationMeta | null;
   onJobClick?: (job: Job) => void;
+  onGetRecommendations?: (job: Job) => void;
   onPageChange?: (page: number) => void;
 }
 
@@ -25,6 +26,7 @@ export const JobList: React.FC<JobListProps> = ({
   error,
   pagination,
   onJobClick,
+  onGetRecommendations,
   onPageChange,
 }) => {
   if (loading) {
@@ -67,7 +69,12 @@ export const JobList: React.FC<JobListProps> = ({
       {/* Jobs List */}
       <div className="space-y-3">
         {jobs.map((job) => (
-          <JobCard key={job.id} job={job} onClick={onJobClick} />
+          <JobCard
+            key={job.id}
+            job={job}
+            onClick={onJobClick}
+            onGetRecommendations={onGetRecommendations}
+          />
         ))}
       </div>
 

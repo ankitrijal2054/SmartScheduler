@@ -6,6 +6,10 @@
 import axios, { AxiosInstance, CancelToken } from "axios";
 import { config } from "@/utils/config";
 import { PaginatedJobsResponse, JobsQueryParams } from "@/types/Job";
+import {
+  RecommendationRequest,
+  RecommendationResponse,
+} from "@/types/Contractor";
 
 class DispatcherService {
   private axiosInstance: AxiosInstance;
@@ -68,6 +72,35 @@ class DispatcherService {
       if (axios.isCancel(error)) {
         console.log("Request cancelled");
         throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get contractor recommendations for a job
+   * @param request Recommendation request containing job details and optional filters
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Recommendation response with top 5 contractors
+   */
+  async getRecommendations(
+    request: RecommendationRequest,
+    cancelToken?: CancelToken
+  ): Promise<RecommendationResponse> {
+    try {
+      const response = await this.axiosInstance.post<RecommendationResponse>(
+        "/api/v1/recommendations",
+        request,
+        {
+          timeout: 5000, // 5 second timeout for recommendations API
+          cancelToken,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Recommendations request cancelled");
+        throw new Error("Recommendations request cancelled");
       }
       throw this.handleError(error);
     }

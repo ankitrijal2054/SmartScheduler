@@ -3,24 +3,35 @@
  * Main dispatcher dashboard with job list and controls
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useJobs } from "@/hooks/useJobs";
 import { Job } from "@/types/Job";
 import { JobList } from "./JobList";
+import { RecommendationsModal } from "./RecommendationsModal";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { jobs, loading, error, pagination, setPage, setSort } = useJobs();
+
+  // Recommendations modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedJobForRecommendations, setSelectedJobForRecommendations] =
+    useState<Job | null>(null);
 
   const handleJobClick = (job: Job) => {
     // TODO: Navigate to job detail view in Story 3.3
     console.log("Selected job:", job);
   };
 
-  const handleGetRecommendations = () => {
-    // TODO: Implement recommendations in Story 3.2
-    alert("Get Recommendations feature coming in Story 3.2");
+  const handleGetRecommendations = (job: Job) => {
+    setSelectedJobForRecommendations(job);
+    setModalOpen(true);
+  };
+
+  const handleCloseRecommendationsModal = () => {
+    setModalOpen(false);
+    setSelectedJobForRecommendations(null);
   };
 
   return (
@@ -39,13 +50,6 @@ export const Dashboard: React.FC = () => {
                 </p>
               )}
             </div>
-            <button
-              onClick={handleGetRecommendations}
-              className="rounded-md bg-blue-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-              aria-label="Get job recommendations"
-            >
-              Get Recommendations
-            </button>
           </div>
         </div>
       </header>
@@ -73,6 +77,7 @@ export const Dashboard: React.FC = () => {
             error={error}
             pagination={pagination}
             onJobClick={handleJobClick}
+            onGetRecommendations={handleGetRecommendations}
             onPageChange={setPage}
           />
         </div>
@@ -88,6 +93,18 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
       </main>
+
+      {/* Recommendations Modal */}
+      {selectedJobForRecommendations && (
+        <RecommendationsModal
+          isOpen={modalOpen}
+          jobId={selectedJobForRecommendations.id}
+          jobType={selectedJobForRecommendations.jobType}
+          location={selectedJobForRecommendations.location}
+          desiredDateTime={selectedJobForRecommendations.desiredDateTime}
+          onClose={handleCloseRecommendationsModal}
+        />
+      )}
     </div>
   );
 };
