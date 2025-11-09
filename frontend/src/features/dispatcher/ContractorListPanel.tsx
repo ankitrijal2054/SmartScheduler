@@ -13,12 +13,14 @@ type TabType = "my-list" | "all-contractors";
 
 interface ContractorListPanelProps {
   onFilterChange?: (contractorListOnly: boolean) => void;
+  onContractorProfileClick?: (contractorId: string) => void;
 }
 
 const ITEMS_PER_PAGE = 50;
 
 export const ContractorListPanel: React.FC<ContractorListPanelProps> = ({
   onFilterChange,
+  onContractorProfileClick,
 }) => {
   const {
     myList,
@@ -240,13 +242,18 @@ export const ContractorListPanel: React.FC<ContractorListPanelProps> = ({
               {/* Contractor list */}
               <div>
                 {myList.map((contractor) => (
-                  <ContractorListItem
+                  <div
                     key={contractor.id}
-                    contractor={contractor}
-                    mode="my-list"
-                    onRemove={handleRemoveContractor}
-                    isLoading={loading}
-                  />
+                    onClick={() => onContractorProfileClick?.(contractor.id)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors rounded"
+                  >
+                    <ContractorListItem
+                      contractor={contractor}
+                      mode="my-list"
+                      onRemove={handleRemoveContractor}
+                      isLoading={loading}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -283,13 +290,18 @@ export const ContractorListPanel: React.FC<ContractorListPanelProps> = ({
               {/* Contractor list */}
               <div className="space-y-2">
                 {allContractors.map((contractor) => (
-                  <ContractorListItem
+                  <div
                     key={contractor.id}
-                    contractor={contractor}
-                    mode="available"
-                    onAdd={handleAddContractor}
-                    isLoading={loading}
-                  />
+                    onClick={() => onContractorProfileClick?.(contractor.id)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors rounded"
+                  >
+                    <ContractorListItem
+                      contractor={contractor}
+                      mode="available"
+                      onAdd={handleAddContractor}
+                      isLoading={loading}
+                    />
+                  </div>
                 ))}
               </div>
 

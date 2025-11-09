@@ -33,6 +33,7 @@ interface RecommendationsModalProps {
   onClose: () => void;
   onAssignmentSuccess?: () => void;
   onContractorSelect?: (contractorId: string, contractorName: string) => void;
+  onContractorProfileClick?: (contractorId: string) => void; // For opening contractor profile
 }
 
 /**
@@ -70,6 +71,7 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
   onClose,
   onAssignmentSuccess,
   onContractorSelect,
+  onContractorProfileClick,
 }) => {
   const {
     recommendations,
@@ -405,6 +407,9 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
                     <ContractorRecommendationCard
                       key={contractor.contractorId}
                       contractor={contractor}
+                      onClick={() =>
+                        onContractorProfileClick?.(contractor.contractorId)
+                      }
                       onAssign={handleAssignClick}
                       isAssigning={
                         isCurrentlyProcessing &&

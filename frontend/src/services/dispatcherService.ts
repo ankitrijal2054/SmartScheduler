@@ -11,6 +11,7 @@ import {
   RecommendationResponse,
   Contractor,
   PaginatedContractorsResponse,
+  ContractorHistory,
 } from "@/types/Contractor";
 import {
   AssignmentRequest,
@@ -278,6 +279,41 @@ class DispatcherService {
     } catch (error) {
       if (axios.isCancel(error)) {
         console.log("Available contractors request cancelled");
+        throw new Error("Request cancelled");
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get contractor history and performance stats
+   * @param contractorId Contractor identifier
+   * @param limit Number of recent jobs to fetch (default 10, max 50)
+   * @param offset Pagination offset (default 0)
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Contractor history with stats and job history
+   */
+  async getContractorHistory(
+    contractorId: string,
+    limit: number = 10,
+    offset: number = 0,
+    cancelToken?: CancelToken
+  ): Promise<ContractorHistory> {
+    try {
+      const response = await this.axiosInstance.get<ContractorHistory>(
+        `/api/v1/dispatcher/contractors/${contractorId}/history`,
+        {
+          params: {
+            limit: Math.min(limit, 50),
+            offset,
+          },
+          cancelToken,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Contractor history request cancelled");
         throw new Error("Request cancelled");
       }
       throw this.handleError(error);

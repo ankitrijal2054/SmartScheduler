@@ -97,3 +97,47 @@ export interface PaginatedContractorsResponse {
   total: number;
   hasMore: boolean;
 }
+
+/**
+ * JobHistoryItem represents a single job in contractor's history
+ */
+export interface JobHistoryItem {
+  jobId: string;
+  jobType: TradeType;
+  customerName: string;
+  completedAt: string; // ISO 8601 datetime
+  status: "completed" | "cancelled" | "in-progress";
+  customerRating: number | null; // 1-5 or null if not rated
+  createdAt: string; // ISO 8601 datetime (when assigned)
+}
+
+/**
+ * ContractorStats contains performance metrics
+ */
+export interface ContractorStats {
+  totalJobsAssigned: number;
+  totalJobsCompleted: number;
+  acceptanceRate: number; // 0-100 percentage
+  averageRating: number | null;
+  totalReviews: number;
+}
+
+/**
+ * ContractorWarnings flags performance issues
+ */
+export interface ContractorWarnings {
+  lowRating?: boolean; // true if averageRating < 3.5
+  highCancellationRate?: boolean; // true if cancellations > 20% of assignments
+}
+
+/**
+ * ContractorHistory is the complete response from contractor history API
+ */
+export interface ContractorHistory {
+  contractor: Contractor & {
+    phoneNumber: string; // Full phone number for profile display
+  };
+  stats: ContractorStats;
+  jobHistory: JobHistoryItem[];
+  warnings?: ContractorWarnings;
+}

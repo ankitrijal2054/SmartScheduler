@@ -10,6 +10,7 @@ import { Job } from "@/types/Job";
 import { JobList } from "./JobList";
 import { RecommendationsModal } from "./RecommendationsModal";
 import { ContractorListPanel } from "./ContractorListPanel";
+import { ContractorProfileModal } from "./ContractorProfileModal";
 
 type DashboardTab = "jobs" | "contractors";
 
@@ -29,6 +30,12 @@ export const Dashboard: React.FC = () => {
   const [selectedJobForRecommendations, setSelectedJobForRecommendations] =
     useState<Job | null>(null);
 
+  // Contractor profile modal state
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedContractorId, setSelectedContractorId] = useState<
+    string | null
+  >(null);
+
   const handleJobClick = (job: Job) => {
     // TODO: Navigate to job detail view in Story 3.3
     console.log("Selected job:", job);
@@ -47,6 +54,16 @@ export const Dashboard: React.FC = () => {
   const handleAssignmentSuccess = () => {
     // Refresh job list after successful assignment
     refreshJobs();
+  };
+
+  const handleContractorCardClick = (contractorId: string) => {
+    setSelectedContractorId(contractorId);
+    setProfileModalOpen(true);
+  };
+
+  const handleCloseProfileModal = () => {
+    setProfileModalOpen(false);
+    setSelectedContractorId(null);
   };
 
   return (
@@ -145,7 +162,10 @@ export const Dashboard: React.FC = () => {
             <h2 className="mb-6 text-2xl font-semibold text-gray-900">
               Contractor List Management
             </h2>
-            <ContractorListPanel onFilterChange={setContractorListOnly} />
+            <ContractorListPanel
+              onFilterChange={setContractorListOnly}
+              onContractorProfileClick={handleContractorCardClick}
+            />
           </div>
         )}
       </main>
@@ -162,6 +182,16 @@ export const Dashboard: React.FC = () => {
           job={selectedJobForRecommendations}
           onClose={handleCloseRecommendationsModal}
           onAssignmentSuccess={handleAssignmentSuccess}
+          onContractorProfileClick={handleContractorCardClick}
+        />
+      )}
+
+      {/* Contractor Profile Modal */}
+      {selectedContractorId && (
+        <ContractorProfileModal
+          contractorId={selectedContractorId}
+          isOpen={profileModalOpen}
+          onClose={handleCloseProfileModal}
         />
       )}
     </div>
