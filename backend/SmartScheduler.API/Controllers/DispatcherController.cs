@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartScheduler.Application.Commands;
 using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Queries;
+using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Exceptions;
 using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
 using ValidationException = SmartScheduler.Domain.Exceptions.ValidationException;
@@ -23,15 +24,18 @@ public class DispatcherController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ILogger<DispatcherController> _logger;
     private readonly IAuthService _authorizationService;
+    private readonly IContractorService _contractorService;
 
     public DispatcherController(
         IMediator mediator,
         ILogger<DispatcherController> logger,
-        IAuthService authorizationService)
+        IAuthService authorizationService,
+        IContractorService contractorService)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _authorizationService = authorizationService ?? throw new ArgumentNullException(nameof(authorizationService));
+        _contractorService = contractorService ?? throw new ArgumentNullException(nameof(contractorService));
     }
 
     /// <summary>
@@ -191,6 +195,113 @@ public class DispatcherController : ControllerBase
                 {
                     code = "CONTRACTOR_LIST_ERROR",
                     message = "Unable to remove contractor from list",
+                    statusCode = 500
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get all available contractors (for adding to dispatcher's list).
+    /// Returns paginated list of all active contractors with optional search filter.
+    /// </summary>
+    /// <param name="limit">Number of contractors to fetch (default: 50, max: 100)</param>
+    /// <param name="offset">Pagination offset (default: 0)</param>
+    /// <param name="search">Optional search filter to find contractors by name (case-insensitive)</param>
+    /// <returns>200 OK with paginated contractor list, or error response</returns>
+    /// <response code="200">Success - returns paginated list of available contractors</response>
+    /// <response code="400">Bad Request - invalid pagination parameters</response>
+    /// <response code="401">Unauthorized - missing or invalid JWT token</response>
+    /// <response code="403">Forbidden - user is not a Dispatcher</response>
+    [HttpGet("contractors")]
+    public async Task<ActionResult<object>> GetAvailableContractors(
+        [FromQuery] int limit = 50,
+        [FromQuery] int offset = 0,
+        [FromQuery] string? search = null)
+    {
+        _logger.LogInformation("Get available contractors requested: Limit={Limit}, Offset={Offset}, Search={Search}",
+            limit, offset, search ?? "none");
+
+        try
+        {
+            // Validate pagination parameters
+            if (limit < 1 || limit > 100)
+            {
+                return BadRequest(new
+                {
+                    error = new
+                    {
+                        code = "INVALID_REQUEST",
+                        message = "Limit must be between 1 and 100",
+                        statusCode = 400
+                    }
+                });
+            }
+
+            if (offset < 0)
+            {
+                return BadRequest(new
+                {
+                    error = new
+                    {
+                        code = "INVALID_REQUEST",
+                        message = "Offset must be >= 0",
+                        statusCode = 400
+                    }
+                });
+            }
+
+            // Convert offset/limit to pageNumber/pageSize for the service
+            var pageSize = limit;
+            var pageNumber = (offset / limit) + 1;
+
+            // Get contractors from service
+            var result = await _contractorService.GetAllContractorsAsync(pageNumber, pageSize);
+
+            // Filter by search term if provided
+            var contractors = result.Items.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                contractors = contractors.Where(c => 
+                    c.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    c.Location.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var contractorList = contractors.ToList();
+            var total = result.TotalCount;
+            var hasMore = offset + limit < total;
+
+            // Map to frontend format
+            var response = new
+            {
+                contractors = contractorList.Select(c => new
+                {
+                    id = c.Id.ToString(),
+                    name = c.Name,
+                    rating = c.AverageRating,
+                    reviewCount = c.ReviewCount,
+                    location = c.Location,
+                    tradeType = c.TradeType.ToString(),
+                    isActive = c.IsActive
+                }),
+                total = total,
+                hasMore = hasMore
+            };
+
+            _logger.LogInformation("Successfully retrieved available contractors. Total: {Total}, Returned: {Count}",
+                total, contractorList.Count);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error retrieving available contractors");
+            return StatusCode(500, new
+            {
+                error = new
+                {
+                    code = "CONTRACTOR_LIST_ERROR",
+                    message = "Unable to retrieve available contractors",
                     statusCode = 500
                 }
             });
