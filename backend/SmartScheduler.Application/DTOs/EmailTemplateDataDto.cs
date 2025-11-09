@@ -70,5 +70,50 @@ public class EmailTemplateDataDto
     /// Gets or sets the rating form URL for the customer to submit a review.
     /// </summary>
     public string RatingUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the contractor email address (for contractor notifications).
+    /// </summary>
+    public string ContractorEmail { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the old scheduled date and time (for schedule change notifications).
+    /// </summary>
+    public DateTime? OldScheduledDateTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the new scheduled date and time (for schedule change notifications).
+    /// </summary>
+    public DateTime? NewScheduledDateTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cancellation reason (for job cancelled notifications).
+    /// </summary>
+    public string CancellationReason { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the rating value (1-5 stars) for rating notifications.
+    /// </summary>
+    public int? Rating { get; set; }
+
+    /// <summary>
+    /// Gets or sets the review comment from the customer.
+    /// </summary>
+    public string ReviewComment { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the contractor profile URL.
+    /// </summary>
+    public string ContractorProfileUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the job accept link for contractor notifications.
+    /// </summary>
+    public string AcceptJobLink { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the job decline link for contractor notifications.
+    /// </summary>
+    public string DeclineJobLink { get; set; } = string.Empty;
 }
 

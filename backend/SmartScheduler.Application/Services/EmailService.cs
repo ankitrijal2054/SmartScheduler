@@ -110,6 +110,10 @@ public class EmailService : IEmailService
             "JobAssignedToCustomer" => _templateService.RenderJobAssignedTemplate(data),
             "JobInProgress" => _templateService.RenderJobInProgressTemplate(data),
             "JobCompleted" => _templateService.RenderJobCompletedTemplate(data),
+            "JobAssignedToContractor" => _templateService.RenderJobAssignedToContractorTemplate(data),
+            "JobCancelledForContractor" => _templateService.RenderJobCancelledForContractorTemplate(data),
+            "JobScheduleChangedForContractor" => _templateService.RenderJobScheduleChangedForContractorTemplate(data),
+            "RatingReceivedByContractor" => _templateService.RenderRatingReceivedByContractorTemplate(data),
             _ => throw new ArgumentException($"Unknown email template: {templateName}", nameof(templateName))
         };
     }
