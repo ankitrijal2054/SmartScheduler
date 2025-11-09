@@ -13,11 +13,7 @@ import {
   PaginatedContractorsResponse,
   ContractorHistory,
 } from "@/types/Contractor";
-import {
-  AssignmentRequest,
-  AssignmentResponse,
-  AssignmentErrorCode,
-} from "@/types/Assignment";
+import { AssignmentRequest, AssignmentResponse } from "@/types/Assignment";
 import {
   ReassignmentRequest,
   ReassignmentResponse,
@@ -190,8 +186,8 @@ class DispatcherService {
       return response.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Contractor list request cancelled");
-        throw new Error("Request cancelled");
+        // Silently handle cancelled requests - they're expected
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }
@@ -216,8 +212,8 @@ class DispatcherService {
       return response.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Add contractor request cancelled");
-        throw new Error("Request cancelled");
+        // Silently handle cancelled requests - they're expected
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }
@@ -241,8 +237,8 @@ class DispatcherService {
       return response.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Remove contractor request cancelled");
-        throw new Error("Request cancelled");
+        // Silently handle cancelled requests - they're expected
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }
@@ -278,8 +274,8 @@ class DispatcherService {
       return response.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Available contractors request cancelled");
-        throw new Error("Request cancelled");
+        // Silently handle cancelled requests - they're expected
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }
@@ -313,8 +309,8 @@ class DispatcherService {
       return response.data;
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Contractor history request cancelled");
-        throw new Error("Request cancelled");
+        // Silently handle cancelled requests - they're expected when component unmounts
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }

@@ -25,14 +25,16 @@ export const ContractorListItem: React.FC<ContractorListItemProps> = ({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const handleAddClick = async () => {
+  const handleAddClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening profile modal
     if (!onAdd) return;
     setActionLoading(true);
     await onAdd(contractor.id);
     setActionLoading(false);
   };
 
-  const handleRemoveClick = async () => {
+  const handleRemoveClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening profile modal
     if (!onRemove) return;
     setActionLoading(true);
     const success = await onRemove(contractor.id);
@@ -40,6 +42,11 @@ export const ContractorListItem: React.FC<ContractorListItemProps> = ({
     if (success) {
       setConfirmRemove(false);
     }
+  };
+
+  const handleCancelRemove = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening profile modal
+    setConfirmRemove(false);
   };
 
   const ratingDisplay =
@@ -82,7 +89,7 @@ export const ContractorListItem: React.FC<ContractorListItemProps> = ({
         </div>
 
         {/* Action button */}
-        <div className="ml-4">
+        <div className="ml-4" onClick={(e) => e.stopPropagation()}>
           {isLoading || actionLoading ? (
             <div className="flex justify-center">
               <LoadingSpinner size="sm" />
@@ -99,7 +106,7 @@ export const ContractorListItem: React.FC<ContractorListItemProps> = ({
                     Confirm
                   </button>
                   <button
-                    onClick={() => setConfirmRemove(false)}
+                    onClick={handleCancelRemove}
                     className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
@@ -107,7 +114,10 @@ export const ContractorListItem: React.FC<ContractorListItemProps> = ({
                 </div>
               ) : (
                 <button
-                  onClick={() => setConfirmRemove(true)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent opening profile modal
+                    setConfirmRemove(true);
+                  }}
                   className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Remove

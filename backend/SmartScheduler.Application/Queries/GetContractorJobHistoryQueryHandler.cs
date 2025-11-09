@@ -46,17 +46,38 @@ public class GetContractorJobHistoryQueryHandler : IRequestHandler<GetContractor
 
         foreach (var assignment in assignments)
         {
+            var job = assignment.Job;
+            var review = job?.Review;
+            var customer = job?.Customer;
+
+            // Map assignment status to frontend format
+            string status = assignment.Status.ToString().ToLower();
+            if (status == "inprogress")
+            {
+                status = "in-progress";
+            }
+            else if (status == "declined")
+            {
+                status = "cancelled"; // Map declined to cancelled for frontend
+            }
+            // Ensure status is one of: completed, cancelled, in-progress
+            if (status != "completed" && status != "cancelled" && status != "in-progress")
+            {
+                // Default to completed if status doesn't match expected values
+                status = "completed";
+            }
+
             jobHistoryDtos.Add(new JobHistoryItemDto
             {
                 Id = assignment.Id,
                 JobId = assignment.JobId,
-                JobType = "Unknown",
-                Location = "Unknown",
-                ScheduledDateTime = assignment.CreatedAt,
-                Status = assignment.Status.ToString(),
-                CustomerName = "Unknown Customer",
-                CustomerRating = null,
-                CustomerReviewText = null,
+                JobType = job?.JobType.ToString() ?? "Unknown",
+                Location = job?.Location ?? "Unknown",
+                ScheduledDateTime = job?.DesiredDateTime ?? assignment.CreatedAt,
+                Status = status,
+                CustomerName = customer?.Name ?? "Unknown Customer",
+                CustomerRating = review?.Rating,
+                CustomerReviewText = review?.Comment,
                 AcceptedAt = assignment.AcceptedAt,
                 CompletedAt = assignment.CompletedAt
             });

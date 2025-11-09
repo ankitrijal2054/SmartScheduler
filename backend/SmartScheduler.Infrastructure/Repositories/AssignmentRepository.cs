@@ -172,6 +172,9 @@ public class AssignmentRepository : IAssignmentRepository
     {
         var query = _dbContext.Assignments
             .Include(a => a.Job)
+                .ThenInclude(j => j!.Customer)
+            .Include(a => a.Job)
+                .ThenInclude(j => j!.Review)
             .Include(a => a.Contractor)
             .Where(a => a.ContractorId == contractorId);
 

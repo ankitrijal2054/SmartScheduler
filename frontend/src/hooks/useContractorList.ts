@@ -31,7 +31,10 @@ export const useContractorList = () => {
     contractorListOnly: false,
   });
 
-  const cancelTokenRef = useRef<ReturnType<
+  const myListCancelTokenRef = useRef<ReturnType<
+    typeof axios.CancelToken.source
+  > | null>(null);
+  const availableCancelTokenRef = useRef<ReturnType<
     typeof axios.CancelToken.source
   > | null>(null);
 
@@ -39,11 +42,13 @@ export const useContractorList = () => {
    * Fetch dispatcher's personal contractor list
    */
   const fetchMyList = useCallback(async () => {
-    if (cancelTokenRef.current) {
-      cancelTokenRef.current.cancel("New request initiated");
+    // Cancel any pending my list request
+    if (myListCancelTokenRef.current) {
+      myListCancelTokenRef.current.cancel("New request initiated");
     }
 
-    cancelTokenRef.current = axios.CancelToken.source();
+    myListCancelTokenRef.current = axios.CancelToken.source();
+    const currentToken = myListCancelTokenRef.current;
 
     setState((prevState) => ({
       ...prevState,
@@ -53,17 +58,24 @@ export const useContractorList = () => {
 
     try {
       const result = await dispatcherService.getContractorList(
-        cancelTokenRef.current.token
+        currentToken.token
       );
 
-      setState((prevState) => ({
-        ...prevState,
-        myList: result,
-        loading: false,
-        error: null,
-      }));
+      // Only update state if this request wasn't cancelled
+      if (currentToken === myListCancelTokenRef.current) {
+        setState((prevState) => ({
+          ...prevState,
+          myList: result,
+          loading: false,
+          error: null,
+        }));
+      }
     } catch (err) {
-      if (!axios.isCancel(err)) {
+      // Only update state if this request wasn't cancelled
+      if (
+        currentToken === myListCancelTokenRef.current &&
+        !axios.isCancel(err)
+      ) {
         const errorMessage =
           err instanceof Error
             ? err.message
@@ -82,11 +94,13 @@ export const useContractorList = () => {
    */
   const fetchAvailableContractors = useCallback(
     async (limit: number = 50, offset: number = 0, search?: string) => {
-      if (cancelTokenRef.current) {
-        cancelTokenRef.current.cancel("New request initiated");
+      // Cancel any pending available contractors request
+      if (availableCancelTokenRef.current) {
+        availableCancelTokenRef.current.cancel("New request initiated");
       }
 
-      cancelTokenRef.current = axios.CancelToken.source();
+      availableCancelTokenRef.current = axios.CancelToken.source();
+      const currentToken = availableCancelTokenRef.current;
 
       setState((prevState) => ({
         ...prevState,
@@ -99,18 +113,25 @@ export const useContractorList = () => {
           limit,
           offset,
           search,
-          cancelTokenRef.current.token
+          currentToken.token
         );
 
-        setState((prevState) => ({
-          ...prevState,
-          allContractors: result.contractors,
-          totalContractors: result.total,
-          loading: false,
-          error: null,
-        }));
+        // Only update state if this request wasn't cancelled
+        if (currentToken === availableCancelTokenRef.current) {
+          setState((prevState) => ({
+            ...prevState,
+            allContractors: result.contractors,
+            totalContractors: result.total,
+            loading: false,
+            error: null,
+          }));
+        }
       } catch (err) {
-        if (!axios.isCancel(err)) {
+        // Only update state if this request wasn't cancelled
+        if (
+          currentToken === availableCancelTokenRef.current &&
+          !axios.isCancel(err)
+        ) {
           const errorMessage =
             err instanceof Error ? err.message : "Failed to fetch contractors";
           setState((prevState) => ({
@@ -128,11 +149,8 @@ export const useContractorList = () => {
    * Add contractor to dispatcher's list
    */
   const addContractor = useCallback(async (contractorId: string) => {
-    if (cancelTokenRef.current) {
-      cancelTokenRef.current.cancel("New request initiated");
-    }
-
-    cancelTokenRef.current = axios.CancelToken.source();
+    // Don't cancel other requests for add/remove operations
+    const cancelToken = axios.CancelToken.source();
 
     setState((prevState) => ({
       ...prevState,
@@ -143,7 +161,7 @@ export const useContractorList = () => {
     try {
       const updatedList = await dispatcherService.addContractorToList(
         contractorId,
-        cancelTokenRef.current.token
+        cancelToken.token
       );
 
       setState((prevState) => ({
@@ -172,11 +190,8 @@ export const useContractorList = () => {
    * Remove contractor from dispatcher's list
    */
   const removeContractor = useCallback(async (contractorId: string) => {
-    if (cancelTokenRef.current) {
-      cancelTokenRef.current.cancel("New request initiated");
-    }
-
-    cancelTokenRef.current = axios.CancelToken.source();
+    // Don't cancel other requests for add/remove operations
+    const cancelToken = axios.CancelToken.source();
 
     setState((prevState) => ({
       ...prevState,
@@ -187,7 +202,7 @@ export const useContractorList = () => {
     try {
       const updatedList = await dispatcherService.removeContractorFromList(
         contractorId,
-        cancelTokenRef.current.token
+        cancelToken.token
       );
 
       setState((prevState) => ({
@@ -226,8 +241,13 @@ export const useContractorList = () => {
    * Cleanup: Cancel pending requests on unmount
    */
   const cleanup = useCallback(() => {
-    if (cancelTokenRef.current) {
-      cancelTokenRef.current.cancel("Component unmounted");
+    if (myListCancelTokenRef.current) {
+      myListCancelTokenRef.current.cancel("Component unmounted");
+      myListCancelTokenRef.current = null;
+    }
+    if (availableCancelTokenRef.current) {
+      availableCancelTokenRef.current.cancel("Component unmounted");
+      availableCancelTokenRef.current = null;
     }
   }, []);
 

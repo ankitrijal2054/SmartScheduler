@@ -52,7 +52,13 @@ export const ContractorProfileModal: React.FC<ContractorProfileModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { data, loading, error } = useContractorHistory(contractorId);
+  // Only fetch data when modal is open
+  const { data, loading, error } = useContractorHistory(
+    contractorId,
+    10,
+    0,
+    isOpen
+  );
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside modal to close

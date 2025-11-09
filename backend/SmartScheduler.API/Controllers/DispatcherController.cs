@@ -66,12 +66,21 @@ public class DispatcherController : ControllerBase
             _logger.LogInformation("Successfully added Contractor {ContractorId} to Dispatcher {DispatcherId} list",
                 contractorId, dispatcherId);
 
-            return Ok(new
+            // Return updated contractor list
+            var listQuery = new GetDispatcherContractorListQuery(dispatcherId, 1, 100);
+            var listResponse = await _mediator.Send(listQuery);
+            var contractors = listResponse.Contractors.Select(c => new
             {
-                message = "Contractor added to your list",
-                dispatcherContractorListId = result,
-                contractorId = contractorId
-            });
+                id = c.Id.ToString(),
+                name = string.IsNullOrWhiteSpace(c.Name) ? $"Contractor {c.Id}" : c.Name,
+                rating = c.AverageRating,
+                reviewCount = c.ReviewCount,
+                location = c.Location,
+                tradeType = c.TradeType,
+                isActive = c.IsActive
+            }).ToList();
+
+            return Ok(contractors);
         }
         catch (ArgumentException ex)
         {
@@ -154,11 +163,21 @@ public class DispatcherController : ControllerBase
             _logger.LogInformation("Successfully removed Contractor {ContractorId} from Dispatcher {DispatcherId} list",
                 contractorId, dispatcherId);
 
-            return Ok(new
+            // Return updated contractor list
+            var listQuery = new GetDispatcherContractorListQuery(dispatcherId, 1, 100);
+            var listResponse = await _mediator.Send(listQuery);
+            var contractors = listResponse.Contractors.Select(c => new
             {
-                message = "Contractor removed from your list",
-                contractorId = contractorId
-            });
+                id = c.Id.ToString(),
+                name = string.IsNullOrWhiteSpace(c.Name) ? $"Contractor {c.Id}" : c.Name,
+                rating = c.AverageRating,
+                reviewCount = c.ReviewCount,
+                location = c.Location,
+                tradeType = c.TradeType,
+                isActive = c.IsActive
+            }).ToList();
+
+            return Ok(contractors);
         }
         catch (ArgumentException ex)
         {
@@ -195,6 +214,167 @@ public class DispatcherController : ControllerBase
                 {
                     code = "CONTRACTOR_LIST_ERROR",
                     message = "Unable to remove contractor from list",
+                    statusCode = 500
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get contractor history and performance stats.
+    /// Dispatchers can view any contractor's history.
+    /// </summary>
+    /// <param name="contractorId">The ID of the contractor</param>
+    /// <param name="limit">Number of recent jobs to fetch (default: 10, max: 50)</param>
+    /// <param name="offset">Pagination offset (default: 0)</param>
+    /// <returns>200 OK with contractor history, stats, and job history, or error response</returns>
+    /// <response code="200">Success - returns contractor history with stats</response>
+    /// <response code="400">Bad Request - invalid pagination parameters</response>
+    /// <response code="401">Unauthorized - missing or invalid JWT token</response>
+    /// <response code="403">Forbidden - user is not a Dispatcher</response>
+    /// <response code="404">Not Found - contractor does not exist</response>
+    [HttpGet("contractors/{contractorId:int}/history")]
+    public async Task<ActionResult<object>> GetContractorHistory(
+        [FromRoute] int contractorId,
+        [FromQuery] int limit = 10,
+        [FromQuery] int offset = 0)
+    {
+        _logger.LogInformation("=== GetContractorHistory CALLED === ContractorId={ContractorId}, Limit={Limit}, Offset={Offset}",
+            contractorId, limit, offset);
+
+        try
+        {
+            // Validate pagination parameters
+            if (limit < 1 || limit > 50)
+            {
+                return BadRequest(new
+                {
+                    error = new
+                    {
+                        code = "INVALID_REQUEST",
+                        message = "Limit must be between 1 and 50",
+                        statusCode = 400
+                    }
+                });
+            }
+
+            if (offset < 0)
+            {
+                return BadRequest(new
+                {
+                    error = new
+                    {
+                        code = "INVALID_REQUEST",
+                        message = "Offset must be >= 0",
+                        statusCode = 400
+                    }
+                });
+            }
+
+            // Get contractor profile with stats
+            ContractorProfileDto profile;
+            try
+            {
+                var profileQuery = new GetContractorProfileQuery(contractorId);
+                profile = await _mediator.Send(profileQuery);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+            {
+                return NotFound(new
+                {
+                    error = new
+                    {
+                        code = "NOT_FOUND",
+                        message = $"Contractor with ID {contractorId} not found",
+                        statusCode = 404
+                    }
+                });
+            }
+
+            // Get contractor entity for additional details
+            var contractor = await _contractorService.GetContractorAsync(contractorId);
+            if (contractor == null)
+            {
+                return NotFound(new
+                {
+                    error = new
+                    {
+                        code = "NOT_FOUND",
+                        message = "Contractor not found",
+                        statusCode = 404
+                    }
+                });
+            }
+
+            // Get job history
+            var historyQuery = new GetContractorJobHistoryQuery(contractorId, null, null, offset, limit);
+            var jobHistory = await _mediator.Send(historyQuery);
+
+            // Map to frontend format
+            var response = new
+            {
+                contractor = new
+                {
+                    id = contractor.Id.ToString(),
+                    name = string.IsNullOrWhiteSpace(contractor.Name) ? $"Contractor {contractor.Id}" : contractor.Name,
+                    phoneNumber = contractor.Phone,
+                    rating = contractor.AverageRating,
+                    reviewCount = contractor.ReviewCount,
+                    location = contractor.Location,
+                    tradeType = contractor.TradeType.ToString(),
+                    isActive = contractor.IsActive
+                },
+                stats = new
+                {
+                    totalJobsAssigned = profile.TotalJobsAssigned,
+                    totalJobsCompleted = profile.TotalJobsCompleted,
+                    acceptanceRate = profile.AcceptanceRate,
+                    averageRating = profile.AverageRating,
+                    totalReviews = profile.ReviewCount
+                },
+                jobHistory = jobHistory.Assignments.Select(a => new
+                {
+                    jobId = a.JobId.ToString(),
+                    jobType = a.JobType,
+                    customerName = a.CustomerName,
+                    completedAt = a.CompletedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? null,
+                    status = a.Status.ToLower(),
+                    customerRating = a.CustomerRating,
+                    createdAt = (a.AcceptedAt ?? a.ScheduledDateTime).ToString("yyyy-MM-ddTHH:mm:ssZ")
+                }).ToList(),
+                warnings = new
+                {
+                    lowRating = profile.AverageRating.HasValue && profile.AverageRating < 3.5m,
+                    highCancellationRate = false // TODO: Calculate cancellation rate if needed
+                }
+            };
+
+            _logger.LogInformation("Successfully retrieved contractor history for ContractorId={ContractorId}", contractorId);
+
+            return Ok(response);
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Contractor not found: {Message}", ex.Message);
+            return NotFound(new
+            {
+                error = new
+                {
+                    code = "NOT_FOUND",
+                    message = ex.Message,
+                    statusCode = 404
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error retrieving contractor history for ContractorId={ContractorId}", contractorId);
+            return StatusCode(500, new
+            {
+                error = new
+                {
+                    code = "CONTRACTOR_HISTORY_ERROR",
+                    message = "Unable to retrieve contractor history",
                     statusCode = 500
                 }
             });
@@ -277,7 +457,7 @@ public class DispatcherController : ControllerBase
                 contractors = contractorList.Select(c => new
                 {
                     id = c.Id.ToString(),
-                    name = c.Name,
+                    name = string.IsNullOrWhiteSpace(c.Name) ? $"Contractor {c.Id}" : c.Name,
                     rating = c.AverageRating,
                     reviewCount = c.ReviewCount,
                     location = c.Location,
@@ -340,11 +520,19 @@ public class DispatcherController : ControllerBase
             _logger.LogInformation("Successfully retrieved contractor list for Dispatcher {DispatcherId}. Total: {Total}",
                 dispatcherId, response.Pagination.Total);
 
-            return Ok(new
+            // Map to frontend format - return array of contractors
+            var contractors = response.Contractors.Select(c => new
             {
-                contractors = response.Contractors,
-                pagination = response.Pagination
-            });
+                id = c.Id.ToString(),
+                name = string.IsNullOrWhiteSpace(c.Name) ? $"Contractor {c.Id}" : c.Name,
+                rating = c.AverageRating,
+                reviewCount = c.ReviewCount,
+                location = c.Location,
+                tradeType = c.TradeType,
+                isActive = c.IsActive
+            }).ToList();
+
+            return Ok(contractors);
         }
         catch (ArgumentException ex)
         {
