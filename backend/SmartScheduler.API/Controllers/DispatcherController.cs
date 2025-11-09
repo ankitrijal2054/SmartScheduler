@@ -7,6 +7,7 @@ using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Queries;
 using SmartScheduler.Domain.Exceptions;
 using IAuthService = SmartScheduler.Application.Services.IAuthorizationService;
+using ValidationException = SmartScheduler.Domain.Exceptions.ValidationException;
 
 namespace SmartScheduler.API.Controllers;
 
@@ -269,6 +270,111 @@ public class DispatcherController : ControllerBase
                 {
                     code = "CONTRACTOR_LIST_ERROR",
                     message = "Unable to retrieve contractor list",
+                    statusCode = 500
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Assign a job to a specific contractor.
+    /// Only dispatchers can perform this operation.
+    /// </summary>
+    /// <param name="jobId">The ID of the job to assign</param>
+    /// <param name="contractorId">The ID of the contractor to assign to</param>
+    /// <returns>200 OK with assignment ID, or error response</returns>
+    /// <response code="200">Success - job assigned to contractor</response>
+    /// <response code="400">Bad Request - job already assigned or contractor inactive</response>
+    /// <response code="401">Unauthorized - missing or invalid JWT token</response>
+    /// <response code="403">Forbidden - user is not a Dispatcher</response>
+    /// <response code="404">Not Found - job or contractor does not exist</response>
+    /// <response code="409">Conflict - job already assigned to another contractor</response>
+    [HttpPost("jobs/{jobId}/assign")]
+    public async Task<ActionResult<object>> AssignJob([FromRoute] int jobId, [FromQuery] int contractorId)
+    {
+        _logger.LogInformation("Job assignment requested: JobId={JobId}, ContractorId={ContractorId}", jobId, contractorId);
+
+        try
+        {
+            // Extract dispatcher ID from JWT token
+            var dispatcherId = _authorizationService.GetCurrentUserIdFromContext(User);
+
+            // Create and handle command via MediatR
+            var command = new AssignJobCommand(jobId, contractorId, dispatcherId);
+            var assignmentId = await _mediator.Send(command);
+
+            _logger.LogInformation("Successfully assigned Job {JobId} to Contractor {ContractorId}. Assignment ID: {AssignmentId}",
+                jobId, contractorId, assignmentId);
+
+            return Ok(new
+            {
+                message = "Job assigned successfully",
+                assignmentId = assignmentId,
+                jobId = jobId,
+                contractorId = contractorId
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error assigning job {JobId}: {Message}", jobId, ex.Message);
+            return BadRequest(new
+            {
+                error = new
+                {
+                    code = "INVALID_REQUEST",
+                    message = ex.Message,
+                    statusCode = 400
+                }
+            });
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Job or contractor not found: {Message}", ex.Message);
+            return NotFound(new
+            {
+                error = new
+                {
+                    code = "NOT_FOUND",
+                    message = ex.Message,
+                    statusCode = 404
+                }
+            });
+        }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validation error: {Message}", ex.Message);
+            return Conflict(new
+            {
+                error = new
+                {
+                    code = "JOB_ALREADY_ASSIGNED",
+                    message = ex.Message,
+                    statusCode = 409
+                }
+            });
+        }
+        catch (UnauthorizedException ex)
+        {
+            _logger.LogWarning(ex, "Authorization failed: {Message}", ex.Message);
+            return Unauthorized(new
+            {
+                error = new
+                {
+                    code = "UNAUTHORIZED",
+                    message = ex.Message,
+                    statusCode = 401
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error assigning job {JobId} to contractor {ContractorId}", jobId, contractorId);
+            return StatusCode(500, new
+            {
+                error = new
+                {
+                    code = "JOB_ASSIGNMENT_ERROR",
+                    message = "Unable to assign job to contractor",
                     statusCode = 500
                 }
             });

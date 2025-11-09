@@ -104,3 +104,4 @@ obj/
 appsettings.Production.json
 .vscode/settings.json
 DEPLOYMENT.md
+.vite

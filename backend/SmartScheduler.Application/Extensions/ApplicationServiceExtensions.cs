@@ -11,7 +11,9 @@ public static class ApplicationServiceExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        // Register MediatR for CQRS pattern
+        // Register MediatR for CQRS pattern and domain events
+        // Note: Infrastructure handlers are registered separately in InfrastructureServiceExtensions
+        // This is called first, then Infrastructure handlers are added after
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly));
 
         // Register FluentValidation validators
@@ -32,6 +34,10 @@ public static class ApplicationServiceExtensions
 
         // Register scoring services (Story 2.4)
         services.AddScoped<IScoringService, ScoringService>();
+
+        // Register email services (Story 4.5)
+        services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+        services.AddScoped<IEmailService, EmailService>();
 
         // Future: Register AutoMapper for DTOs
         // services.AddAutoMapper(typeof(ApplicationServiceExtensions).Assembly);

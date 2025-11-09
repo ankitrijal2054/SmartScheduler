@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +35,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
         services.AddScoped<IDispatcherContractorListRepository, DispatcherContractorListRepository>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
+
+        // Register MediatR handlers from Infrastructure assembly
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(InfrastructureServiceExtensions).Assembly));
 
         // Register application services
         services.AddScoped<IRatingAggregationService, RatingAggregationService>();
