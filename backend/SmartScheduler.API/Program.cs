@@ -94,11 +94,21 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 
 var app = builder.Build();
 
-// Run database migrations on startup (all environments) - non-blocking
+// Run database migrations on startup (all environments)
 try
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    
+    Log.Information("Testing database connectivity...");
+    // Test connection first
+    var canConnect = await context.Database.CanConnectAsync();
+    if (!canConnect)
+    {
+        Log.Error("Cannot connect to database. Check connection string and database availability.");
+        throw new InvalidOperationException("Database connection failed");
+    }
+    
     Log.Information("Running database migrations...");
     await context.Database.MigrateAsync();
     Log.Information("Database migrations completed successfully");
@@ -106,13 +116,19 @@ try
     // Seed database in development only
     if (app.Environment.IsDevelopment())
     {
+        Log.Information("Seeding database with initial data...");
         DatabaseSeeder.Seed(context);
         Log.Information("Database seeding completed successfully");
     }
 }
 catch (Exception ex)
 {
-    Log.Warning(ex, "Database migration failed - app will continue without database. Check RDS connectivity.");
+    Log.Error(ex, "Database migration failed - application startup halted. This is a critical error.");
+    // Re-throw in production, continue in development for debugging
+    if (!app.Environment.IsDevelopment())
+    {
+        throw;
+    }
 }
 
 // Configure the HTTP request pipeline
