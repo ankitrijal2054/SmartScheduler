@@ -4,18 +4,34 @@
  * Role-based redirect ensures only contractors can access this page
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/hooks/useAuthContext";
 import { useSignalRNotifications } from "@/hooks/useSignalRNotifications";
 import { ContractorLayout } from "./ContractorLayout";
 import { JobList } from "./JobList";
+import { ContractorProfileTab } from "./ContractorProfileTab";
+import { ContractorJobHistoryTab } from "./ContractorJobHistoryTab";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+
+type DashboardTab = "jobs" | "profile" | "history";
+
+interface TabConfig {
+  id: DashboardTab;
+  label: string;
+}
+
+const TABS: TabConfig[] = [
+  { id: "jobs", label: "Jobs" },
+  { id: "profile", label: "Profile" },
+  { id: "history", label: "History" },
+];
 
 export const ContractorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuthContext();
   const { isConnected, error: signalRError } = useSignalRNotifications();
+  const [activeTab, setActiveTab] = useState<DashboardTab>("jobs");
 
   // Role-based redirect
   useEffect(() => {
@@ -50,23 +66,45 @@ export const ContractorDashboard: React.FC = () => {
             {isConnected
               ? "Connected to live updates"
               : signalRError
-                ? `Connection error: ${signalRError}`
-                : "Connecting..."}
+              ? `Connection error: ${signalRError}`
+              : "Connecting..."}
           </span>
         </div>
 
         {/* Page Title */}
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">My Jobs</h2>
+          <h2 className="text-3xl font-bold text-gray-900">
+            Contractor Dashboard
+          </h2>
           <p className="text-gray-600 mt-1">
-            View and manage your assigned jobs
+            Manage your jobs and track your performance
           </p>
         </div>
 
-        {/* Job List with Tabs */}
-        <JobList />
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 flex gap-8">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-1 py-3 font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="pt-4">
+          {activeTab === "jobs" && <JobList />}
+          {activeTab === "profile" && <ContractorProfileTab />}
+          {activeTab === "history" && <ContractorJobHistoryTab />}
+        </div>
       </div>
     </ContractorLayout>
   );
 };
-

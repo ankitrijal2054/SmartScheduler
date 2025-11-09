@@ -157,5 +157,49 @@ public class AssignmentRepository : IAssignmentRepository
             .Where(a => a.ContractorId == contractorId && a.Status == status)
             .CountAsync();
     }
+
+    /// <summary>
+    /// Gets contractor's job history with optional date filtering and pagination.
+    /// Includes customer review data (rating and comment) if available.
+    /// Results sorted by job scheduled date in descending order.
+    /// </summary>
+    public async Task<(List<Assignment> Assignments, int TotalCount)> GetContractorJobsWithReviewsAsync(
+        int contractorId,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int skip = 0,
+        int take = 20)
+    {
+        var query = _dbContext.Assignments
+            .Include(a => a.Job)
+            .Include(a => a.Contractor)
+            .Where(a => a.ContractorId == contractorId);
+
+        // Apply date filtering if provided
+        if (startDate.HasValue)
+        {
+            query = query.Where(a => a.Job != null && a.Job.DesiredDateTime >= startDate.Value);
+        }
+
+        if (endDate.HasValue)
+        {
+            // Include entire end date by filtering up to end of that day
+            var endOfDay = endDate.Value.AddDays(1).AddTicks(-1);
+            query = query.Where(a => a.Job != null && a.Job.DesiredDateTime <= endOfDay);
+        }
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply ordering and pagination
+        var assignments = await query
+            .OrderByDescending(a => a.Job != null ? a.Job.DesiredDateTime : a.AssignedAt)
+            .Skip(skip)
+            .Take(take)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return (assignments, totalCount);
+    }
 }
 

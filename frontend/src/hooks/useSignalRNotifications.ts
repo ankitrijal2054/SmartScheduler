@@ -38,7 +38,7 @@ export const useSignalRNotifications = () => {
     }) => {
       const message = `New ${data.jobType} job at ${data.location}`;
       addNotification(message, "NewJobAssigned", data.jobId);
-      
+
       // Optional: Play notification sound
       try {
         const audio = new Audio(
@@ -56,14 +56,22 @@ export const useSignalRNotifications = () => {
 
   const handleJobReassigned = useCallback(
     (data: { jobId: string; reason?: string }) => {
-      addNotification("Your assignment has been reassigned", "JobReassigned", data.jobId);
+      addNotification(
+        "Your assignment has been reassigned",
+        "JobReassigned",
+        data.jobId
+      );
     },
     [addNotification]
   );
 
   const handleJobCancelled = useCallback(
     (data: { jobId: string; reason?: string }) => {
-      addNotification("A job assignment was cancelled", "JobCancelled", data.jobId);
+      addNotification(
+        "A job assignment was cancelled",
+        "JobCancelled",
+        data.jobId
+      );
     },
     [addNotification]
   );
@@ -75,6 +83,14 @@ export const useSignalRNotifications = () => {
         "JobStatusUpdated",
         data.jobId
       );
+    },
+    [addNotification]
+  );
+
+  const handleRatingReceived = useCallback(
+    (data: { rating: number; customerName: string; comment?: string }) => {
+      const message = `You received a ${data.rating}-star rating from ${data.customerName}`;
+      addNotification(message, "RatingReceived");
     },
     [addNotification]
   );
@@ -93,6 +109,7 @@ export const useSignalRNotifications = () => {
       signalRService.on("JobReassigned", handleJobReassigned);
       signalRService.on("JobCancelled", handleJobCancelled);
       signalRService.on("JobStatusUpdated", handleJobStatusUpdated);
+      signalRService.on("RatingReceived", handleRatingReceived);
 
       await signalRService.connect();
       await signalRService.joinGroup(`contractor-${user.id}`);
@@ -116,7 +133,14 @@ export const useSignalRNotifications = () => {
         }, delay);
       }
     }
-  }, [user?.id, handleNewJobAssigned, handleJobReassigned, handleJobCancelled, handleJobStatusUpdated]);
+  }, [
+    user?.id,
+    handleNewJobAssigned,
+    handleJobReassigned,
+    handleJobCancelled,
+    handleJobStatusUpdated,
+    handleRatingReceived,
+  ]);
 
   const manualReconnect = useCallback(() => {
     reconnectCountRef.current = 0;
@@ -143,6 +167,3 @@ export const useSignalRNotifications = () => {
     manualReconnect,
   };
 };
-
-
-

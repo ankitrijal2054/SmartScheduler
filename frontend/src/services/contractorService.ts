@@ -8,6 +8,12 @@ import axios from "axios";
 import { config } from "@/utils/config";
 import { Assignment } from "@/types/Assignment";
 import { JobDetails } from "@/types/JobDetails";
+import {
+  ContractorProfileData,
+  JobHistoryResponse,
+  JobHistoryFilterOptions,
+  JobHistoryPaginationParams,
+} from "@/types/ContractorProfile";
 
 const api = axios.create({
   baseURL: config.api.baseUrl,
@@ -124,6 +130,48 @@ export const contractorService = {
   async markComplete(assignmentId: string): Promise<Assignment> {
     const response = await api.patch<{ data: Assignment }>(
       `/api/v1/assignments/${assignmentId}/mark-complete`
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get contractor's profile with aggregated statistics
+   * Includes: name, average rating, job counts, acceptance rate, recent reviews
+   * Used in Story 5.4
+   */
+  async getProfile(): Promise<ContractorProfileData> {
+    const response = await api.get<{ data: ContractorProfileData }>(
+      "/api/v1/contractors/profile"
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get contractor's job history with optional filtering and pagination
+   * Used in Story 5.4
+   * @param filters Optional date filters (startDate, endDate in ISO 8601 format)
+   * @param pagination Pagination parameters (skip, take)
+   */
+  async getJobHistory(
+    pagination: JobHistoryPaginationParams,
+    filters?: JobHistoryFilterOptions
+  ): Promise<JobHistoryResponse> {
+    const params: Record<string, any> = {
+      skip: pagination.skip,
+      take: pagination.take,
+    };
+
+    if (filters?.startDate) {
+      params.startDate = filters.startDate;
+    }
+
+    if (filters?.endDate) {
+      params.endDate = filters.endDate;
+    }
+
+    const response = await api.get<{ data: JobHistoryResponse }>(
+      "/api/v1/contractors/job-history",
+      { params }
     );
     return response.data.data;
   },

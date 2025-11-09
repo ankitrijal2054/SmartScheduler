@@ -73,5 +73,23 @@ public interface IAssignmentRepository
     /// <param name="status">The assignment status to filter by.</param>
     /// <returns>Total count of matching assignments.</returns>
     Task<int> GetAssignmentCountByContractorAndStatusAsync(int contractorId, AssignmentStatus status);
+
+    /// <summary>
+    /// Gets contractor's job history with optional date filtering and pagination.
+    /// Includes customer review data (rating and comment) if available.
+    /// Results sorted by job scheduled date in descending order.
+    /// </summary>
+    /// <param name="contractorId">The contractor ID.</param>
+    /// <param name="startDate">Optional: Filter jobs scheduled on or after this date.</param>
+    /// <param name="endDate">Optional: Filter jobs scheduled on or before this date.</param>
+    /// <param name="skip">Number of results to skip for pagination (default 0).</param>
+    /// <param name="take">Number of results to take for pagination (max 100).</param>
+    /// <returns>Tuple of (assignments list, total count) for the contractor.</returns>
+    Task<(List<Assignment> Assignments, int TotalCount)> GetContractorJobsWithReviewsAsync(
+        int contractorId,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int skip = 0,
+        int take = 20);
 }
 

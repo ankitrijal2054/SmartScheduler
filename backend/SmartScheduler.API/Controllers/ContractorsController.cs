@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartScheduler.Application.DTOs;
+using SmartScheduler.Application.Queries;
 using SmartScheduler.Application.Responses;
 using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Exceptions;
@@ -19,13 +21,16 @@ namespace SmartScheduler.API.Controllers;
 public class ContractorsController : ControllerBase
 {
     private readonly IContractorService _contractorService;
+    private readonly IMediator _mediator;
     private readonly ILogger<ContractorsController> _logger;
 
     public ContractorsController(
         IContractorService contractorService,
+        IMediator mediator,
         ILogger<ContractorsController> logger)
     {
         _contractorService = contractorService ?? throw new ArgumentNullException(nameof(contractorService));
+        _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -214,6 +219,94 @@ public class ContractorsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deactivating contractor {ContractorId}", id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Get the current contractor's profile with aggregated statistics and recent reviews.
+    /// Contractor can only view their own profile.
+    /// </summary>
+    /// <returns>200 OK with contractor profile data</returns>
+    [HttpGet("profile")]
+    [ProducesResponseType(typeof(ApiResponse<ContractorProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<ContractorProfileDto>>> GetProfile()
+    {
+        try
+        {
+            var contractorId = GetUserId();
+            _logger.LogInformation("Get contractor profile requested. ContractorId: {ContractorId}", contractorId);
+
+            var query = new GetContractorProfileQuery(contractorId);
+            var profile = await _mediator.Send(query);
+
+            return Ok(new ApiResponse<ContractorProfileDto>(profile, 200));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Contractor not found for profile");
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving contractor profile");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Get the current contractor's job history with optional filtering and pagination.
+    /// Contractor can only view their own job history.
+    /// </summary>
+    /// <param name="skip">Number of records to skip (default 0)</param>
+    /// <param name="take">Number of records to take (default 20, max 100)</param>
+    /// <param name="startDate">Optional: Filter jobs on or after this date (ISO 8601)</param>
+    /// <param name="endDate">Optional: Filter jobs on or before this date (ISO 8601)</param>
+    /// <returns>200 OK with job history list and pagination metadata</returns>
+    [HttpGet("job-history")]
+    [ProducesResponseType(typeof(ApiResponse<JobHistoryResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<JobHistoryResponseDto>>> GetJobHistory(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            var contractorId = GetUserId();
+
+            // Validate pagination parameters
+            if (skip < 0)
+                return BadRequest("skip must be >= 0");
+
+            if (take < 1 || take > 100)
+                return BadRequest("take must be between 1 and 100");
+
+            // Validate date range
+            if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+                return BadRequest("startDate must be before or equal to endDate");
+
+            _logger.LogInformation(
+                "Get job history requested. ContractorId: {ContractorId}, Skip: {Skip}, Take: {Take}, StartDate: {StartDate}, EndDate: {EndDate}",
+                contractorId, skip, take, startDate, endDate);
+
+            var query = new GetContractorJobHistoryQuery(contractorId, startDate, endDate, skip, take);
+            var jobHistory = await _mediator.Send(query);
+
+            return Ok(new ApiResponse<JobHistoryResponseDto>(jobHistory, 200));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request for job history");
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving job history");
             throw;
         }
     }

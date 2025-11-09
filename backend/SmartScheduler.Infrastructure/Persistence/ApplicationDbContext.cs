@@ -231,6 +231,12 @@ public class ApplicationDbContext : DbContext
             // Composite index for availability checking
             entity.HasIndex(e => new { e.ContractorId, e.Status })
                 .HasDatabaseName("IX_Assignments_ContractorId_Status");
+
+            // Composite index for job history queries with date filtering (Story 5.4)
+            // Supports: GetContractorJobsWithReviewsAsync with startDate/endDate filters
+            // Note: Job.DesiredDateTime is used for sorting, included via navigation
+            entity.HasIndex(e => new { e.ContractorId, e.AssignedAt })
+                .HasDatabaseName("IX_Assignments_ContractorId_AssignedAt");
         });
 
         // Review entity configuration
@@ -260,6 +266,11 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.JobId)
                 .IsUnique()
                 .HasDatabaseName("IX_Reviews_JobId_Unique");
+
+            // Composite index for contractor profile queries (Story 5.4)
+            // Used to fetch recent reviews for a contractor sorted by date
+            entity.HasIndex(e => new { e.ContractorId, e.CreatedAt })
+                .HasDatabaseName("IX_Reviews_ContractorId_CreatedAt");
         });
 
         // DispatcherContractorList entity configuration
