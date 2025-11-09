@@ -100,5 +100,14 @@ public interface IAssignmentRepository
         DateTime? endDate = null,
         int skip = 0,
         int take = 20);
+
+    /// <summary>
+    /// Gets an assignment by ID with full details including job, customer, and reviews.
+    /// Used for displaying complete job details in contractor dashboard.
+    /// </summary>
+    /// <param name="assignmentId">The assignment ID.</param>
+    /// <param name="contractorId">The contractor ID for authorization (must match assignment's contractor).</param>
+    /// <returns>The assignment with full details, or null if not found or not authorized.</returns>
+    Task<Assignment?> GetAssignmentWithDetailsAsync(int assignmentId, int contractorId);
 }
 

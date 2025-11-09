@@ -87,5 +87,41 @@ public class Assignment : BaseEntity
         Status = AssignmentStatus.Completed;
         CompletedAt = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Marks the assignment as accepted. Validates that the assignment is in 'Pending' state.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if assignment is not in 'Pending' state.</exception>
+    public void Accept()
+    {
+        if (Status != AssignmentStatus.Pending)
+        {
+            throw new InvalidOperationException(
+                $"Cannot accept assignment. Current status is {Status}. " +
+                "Only 'Pending' assignments can be accepted."
+            );
+        }
+
+        Status = AssignmentStatus.Accepted;
+        AcceptedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Marks the assignment as declined. Validates that the assignment is in 'Pending' state.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if assignment is not in 'Pending' state.</exception>
+    public void Decline()
+    {
+        if (Status != AssignmentStatus.Pending)
+        {
+            throw new InvalidOperationException(
+                $"Cannot decline assignment. Current status is {Status}. " +
+                "Only 'Pending' assignments can be declined."
+            );
+        }
+
+        Status = AssignmentStatus.Declined;
+        DeclinedAt = DateTime.UtcNow;
+    }
 }
 

@@ -233,5 +233,22 @@ public class AssignmentRepository : IAssignmentRepository
 
         return (assignments, totalCount);
     }
+
+    /// <summary>
+    /// Gets an assignment by ID with full details including job, customer, and reviews.
+    /// </summary>
+    public async Task<Assignment?> GetAssignmentWithDetailsAsync(int assignmentId, int contractorId)
+    {
+        var assignment = await _dbContext.Assignments
+            .Include(a => a.Job)
+                .ThenInclude(j => j!.Customer)
+            .Include(a => a.Job)
+                .ThenInclude(j => j!.Review)
+            .Where(a => a.Id == assignmentId && a.ContractorId == contractorId)
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+
+        return assignment;
+    }
 }
 
