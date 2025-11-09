@@ -5,7 +5,11 @@
 
 import axios, { AxiosInstance } from "axios";
 import { config } from "@/utils/config";
-import { CreateJobRequest, JobCreationResponse } from "@/types/Customer";
+import {
+  CreateJobRequest,
+  JobCreationResponse,
+  ContractorProfileResponse,
+} from "@/types/Customer";
 import { JobDetail, JobDetailResponse } from "@/types/Job";
 
 class CustomerService {
@@ -114,6 +118,26 @@ class CustomerService {
       }
 
       return job;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Fetch contractor profile with reviews
+   * @param contractorId Contractor unique identifier
+   * @returns Contractor profile with reviews array
+   * @throws Error if contractor not found or fetch fails
+   */
+  async getContractorProfile(
+    contractorId: string
+  ): Promise<ContractorProfileResponse> {
+    try {
+      const response = await this.axiosInstance.get<{
+        data: ContractorProfileResponse;
+        message: string;
+      }>(`/api/v1/customer/contractors/${contractorId}/profile`);
+      return response.data.data;
     } catch (error) {
       throw this.handleError(error);
     }

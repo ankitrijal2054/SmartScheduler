@@ -64,3 +64,33 @@ export interface JobSubmissionState {
   submittedJobId: string | null;
   validationErrors: FormValidationErrors;
 }
+
+/**
+ * Review with customer information for display
+ */
+export interface ReviewWithCustomer {
+  id: string;
+  jobId: string;
+  contractorId: string;
+  customerId: string;
+  rating: number; // 1-5 stars
+  comment: string | null; // Text review (may be null)
+  customerName: string; // For display: "Jane K."
+  createdAt: string; // ISO 8601 timestamp
+}
+
+/**
+ * Contractor profile response with reviews
+ */
+export interface ContractorProfileResponse {
+  contractor: {
+    id: string;
+    name: string;
+    phoneNumber: string;
+    averageRating: number | null;
+    reviewCount: number;
+    totalJobsCompleted: number;
+    isActive: boolean;
+  };
+  reviews: ReviewWithCustomer[];
+}

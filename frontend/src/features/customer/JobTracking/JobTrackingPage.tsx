@@ -8,9 +8,11 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJob } from "@/hooks/useJob";
 import { useSignalR } from "@/hooks/useSignalR";
+import { useContractorProfile } from "@/hooks/useContractorProfile";
 import { JobStatusTimeline } from "./JobStatusTimeline";
 import { JobDetailsCard } from "./JobDetailsCard";
 import { ContractorInfoCard } from "./ContractorInfoCard";
+import { ContractorProfileModal } from "./ContractorProfileModal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { JobDetail } from "@/types/Job";
 
@@ -21,6 +23,15 @@ export const JobTrackingPage: React.FC = () => {
   // Fetch job details
   const { job, loading, error, refreshJob } = useJob(jobId || "");
   const [displayedJob, setDisplayedJob] = useState<JobDetail | null>(null);
+
+  // Modal state for contractor profile
+  const [showContractorProfile, setShowContractorProfile] = useState(false);
+  const contractorId = displayedJob?.contractor?.id || null;
+  const {
+    contractor,
+    reviews,
+    loading: profileLoading,
+  } = useContractorProfile(showContractorProfile ? contractorId : null);
 
   // Subscribe to real-time updates
   const { isConnected } = useSignalR({
@@ -156,6 +167,7 @@ export const JobTrackingPage: React.FC = () => {
               estimatedArrivalTime={
                 displayedJob.assignment?.estimatedArrivalTime || undefined
               }
+              onViewProfile={() => setShowContractorProfile(true)}
             />
           </div>
         </div>
@@ -176,6 +188,15 @@ export const JobTrackingPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Contractor Profile Modal */}
+      <ContractorProfileModal
+        isOpen={showContractorProfile}
+        onClose={() => setShowContractorProfile(false)}
+        contractor={contractor}
+        reviews={reviews}
+        loading={profileLoading}
+      />
     </div>
   );
 };

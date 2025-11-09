@@ -14,6 +14,7 @@ interface ContractorInfoCardProps {
   };
   jobStatus: string;
   estimatedArrivalTime?: string;
+  onViewProfile?: () => void;
 }
 
 /**
@@ -90,6 +91,7 @@ export const ContractorInfoCard: React.FC<ContractorInfoCardProps> = ({
   contractor,
   jobStatus,
   estimatedArrivalTime,
+  onViewProfile,
 }) => {
   const isAssigned = ["Assigned", "InProgress", "Completed"].includes(
     jobStatus
@@ -113,12 +115,32 @@ export const ContractorInfoCard: React.FC<ContractorInfoCardProps> = ({
   }
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-md overflow-hidden">
+    <div
+      className={`w-full bg-white rounded-lg shadow-md overflow-hidden ${
+        onViewProfile ? "cursor-pointer hover:shadow-lg transition-shadow" : ""
+      }`}
+      onClick={onViewProfile}
+      role={onViewProfile ? "button" : undefined}
+      tabIndex={onViewProfile ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onViewProfile && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onViewProfile();
+        }
+      }}
+    >
       {/* Header */}
       <div className="border-b px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-          Assigned Contractor
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+            Assigned Contractor
+          </h2>
+          {onViewProfile && (
+            <span className="text-xs text-blue-600 font-semibold">
+              Click for details →
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Content */}
