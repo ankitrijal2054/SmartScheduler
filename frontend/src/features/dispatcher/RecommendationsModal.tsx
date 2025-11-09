@@ -3,10 +3,18 @@
  * Modal/Dialog for displaying contractor recommendations with sorting and filtering
  */
 
-import React, { useEffect } from "react";
-import { RecommendationRequest, SortField } from "@/types/Contractor";
+import React, { useEffect, useState } from "react";
+import {
+  RecommendationRequest,
+  RecommendedContractor,
+  SortField,
+} from "@/types/Contractor";
+import { Job } from "@/types/Job";
 import { useRecommendations } from "@/hooks/useRecommendations";
+import { useJobAssignment } from "@/hooks/useJobAssignment";
+import { useToast, ToastContainer } from "@/components/shared/Toast";
 import { ContractorRecommendationCard } from "./ContractorRecommendationCard";
+import { AssignmentConfirmationDialog } from "./AssignmentConfirmationDialog";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 interface RecommendationsModalProps {
@@ -16,7 +24,9 @@ interface RecommendationsModalProps {
   location: string;
   desiredDateTime: string;
   contractorListOnly?: boolean;
+  job?: Job | null;
   onClose: () => void;
+  onAssignmentSuccess?: () => void;
 }
 
 /**
@@ -47,7 +57,9 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
   location,
   desiredDateTime,
   contractorListOnly = false,
+  job = null,
   onClose,
+  onAssignmentSuccess,
 }) => {
   const {
     recommendations,
@@ -59,6 +71,27 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     retry,
     cleanup,
   } = useRecommendations();
+
+  const {
+    isAssigning,
+    error: assignmentError,
+    successMessage,
+    assignJob,
+    reset: resetAssignment,
+    retry: retryAssignment,
+  } = useJobAssignment();
+
+  const {
+    toasts,
+    removeToast,
+    success: showSuccess,
+    error: showError,
+  } = useToast();
+
+  // Confirmation dialog state
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [selectedContractor, setSelectedContractor] =
+    useState<RecommendedContractor | null>(null);
 
   // Fetch recommendations when modal opens
   useEffect(() => {
@@ -101,6 +134,71 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Reset confirmation dialog when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmationOpen(false);
+      setSelectedContractor(null);
+      resetAssignment();
+    }
+  }, [isOpen, resetAssignment]);
+
+  // Handle assign button click
+  const handleAssignClick = (contractor: RecommendedContractor) => {
+    setSelectedContractor(contractor);
+    setConfirmationOpen(true);
+  };
+
+  // Handle confirmation dialog close
+  const handleConfirmationClose = () => {
+    setConfirmationOpen(false);
+    setSelectedContractor(null);
+    resetAssignment();
+  };
+
+  // Handle assignment confirmation
+  const handleAssignmentConfirm = async () => {
+    if (selectedContractor && job) {
+      await assignJob(jobId, selectedContractor.contractorId);
+    }
+  };
+
+  // Show toast for assignment success
+  useEffect(() => {
+    if (successMessage && selectedContractor) {
+      showSuccess(`Job assigned to ${selectedContractor.name}`);
+    }
+  }, [successMessage, selectedContractor, showSuccess]);
+
+  // Show toast for assignment error
+  useEffect(() => {
+    if (assignmentError && selectedContractor) {
+      showError(assignmentError);
+    }
+  }, [assignmentError, selectedContractor, showError]);
+
+  // Handle assignment success
+  useEffect(() => {
+    if (
+      !isAssigning &&
+      !assignmentError &&
+      selectedContractor &&
+      successMessage
+    ) {
+      // Assignment was successful
+      handleConfirmationClose();
+      onClose(); // Close recommendations modal
+      onAssignmentSuccess?.(); // Notify parent to refresh job list
+    }
+  }, [
+    isAssigning,
+    assignmentError,
+    selectedContractor,
+    successMessage,
+    onClose,
+    onAssignmentSuccess,
+  ]);
 
   if (!isOpen) return null;
 
@@ -241,6 +339,12 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
                   <ContractorRecommendationCard
                     key={contractor.contractorId}
                     contractor={contractor}
+                    onAssign={handleAssignClick}
+                    isAssigning={
+                      isAssigning &&
+                      selectedContractor?.contractorId ===
+                        contractor.contractorId
+                    }
                   />
                 ))}
               </div>
@@ -248,6 +352,21 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Assignment Confirmation Dialog */}
+      <AssignmentConfirmationDialog
+        isOpen={confirmationOpen}
+        contractor={selectedContractor}
+        job={job}
+        isAssigning={isAssigning}
+        error={assignmentError}
+        onConfirm={handleAssignmentConfirm}
+        onCancel={handleConfirmationClose}
+        onRetry={retryAssignment}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 };

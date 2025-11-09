@@ -12,7 +12,8 @@ import { RecommendationsModal } from "./RecommendationsModal";
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { jobs, loading, error, pagination, setPage, setSort } = useJobs();
+  const { jobs, loading, error, pagination, setPage, setSort, refreshJobs } =
+    useJobs();
 
   // Recommendations modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,6 +33,11 @@ export const Dashboard: React.FC = () => {
   const handleCloseRecommendationsModal = () => {
     setModalOpen(false);
     setSelectedJobForRecommendations(null);
+  };
+
+  const handleAssignmentSuccess = () => {
+    // Refresh job list after successful assignment
+    refreshJobs();
   };
 
   return (
@@ -102,7 +108,9 @@ export const Dashboard: React.FC = () => {
           jobType={selectedJobForRecommendations.jobType}
           location={selectedJobForRecommendations.location}
           desiredDateTime={selectedJobForRecommendations.desiredDateTime}
+          job={selectedJobForRecommendations}
           onClose={handleCloseRecommendationsModal}
+          onAssignmentSuccess={handleAssignmentSuccess}
         />
       )}
     </div>

@@ -10,6 +10,8 @@ import { RecommendedContractor } from "@/types/Contractor";
 interface ContractorRecommendationCardProps {
   contractor: RecommendedContractor;
   onClick?: (contractor: RecommendedContractor) => void;
+  onAssign?: (contractor: RecommendedContractor) => void;
+  isAssigning?: boolean;
 }
 
 /**
@@ -80,9 +82,14 @@ const formatTimeSlot = (startTime: string, endTime: string): string => {
 
 export const ContractorRecommendationCard: React.FC<
   ContractorRecommendationCardProps
-> = ({ contractor, onClick }) => {
+> = ({ contractor, onClick, onAssign, isAssigning = false }) => {
   const handleClick = () => {
     onClick?.(contractor);
+  };
+
+  const handleAssignClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAssign?.(contractor);
   };
 
   const firstSlot = contractor.availableTimeSlots[0];
@@ -172,6 +179,29 @@ export const ContractorRecommendationCard: React.FC<
               </p>
             )}
           </div>
+        )}
+
+        {/* Assign Button */}
+        {onAssign && (
+          <button
+            onClick={handleAssignClick}
+            disabled={isAssigning}
+            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            type="button"
+            aria-label={`Assign ${contractor.name} to job`}
+          >
+            {isAssigning ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Assigning...
+              </>
+            ) : (
+              <>
+                Assign
+                <span>→</span>
+              </>
+            )}
+          </button>
         )}
       </div>
     </div>
