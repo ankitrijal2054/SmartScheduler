@@ -103,3 +103,4 @@ obj/
 *.suo
 appsettings.Production.json
 .vscode/settings.json
+DEPLOYMENT.md
