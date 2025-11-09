@@ -6,6 +6,7 @@
 import axios, { AxiosInstance } from "axios";
 import { config } from "@/utils/config";
 import { CreateJobRequest, JobCreationResponse } from "@/types/Customer";
+import { JobDetail, JobDetailResponse } from "@/types/Job";
 
 class CustomerService {
   private axiosInstance: AxiosInstance;
@@ -52,6 +53,67 @@ class CustomerService {
         message: string;
       }>("/api/v1/jobs", request);
       return response.data.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Fetch a single job by ID with full details
+   * @param jobId Job unique identifier
+   * @returns Job detail with contractor and assignment info
+   * @throws Error if job not found or fetch fails
+   */
+  async getJobById(jobId: string): Promise<JobDetail> {
+    try {
+      const response = await this.axiosInstance.get<{
+        data: JobDetailResponse;
+        message: string;
+      }>(`/api/v1/customer/jobs/${jobId}`);
+
+      const jobData = response.data.data;
+
+      // Normalize response to JobDetail
+      const job: JobDetail = {
+        id: jobData.id,
+        customerId: jobData.customerId,
+        location: jobData.location,
+        desiredDateTime: jobData.desiredDateTime,
+        jobType: (jobData.jobType as any) || "Other",
+        description: jobData.description,
+        status: (jobData.status as any) || "Pending",
+        currentAssignedContractorId: jobData.currentAssignedContractorId,
+        createdAt: jobData.createdAt,
+        updatedAt: jobData.updatedAt,
+      };
+
+      if (jobData.assignment) {
+        job.assignment = {
+          id: jobData.assignment.id,
+          contractorId: jobData.assignment.contractorId,
+          status: jobData.assignment.status,
+          assignedAt: jobData.assignment.assignedAt,
+          acceptedAt: jobData.assignment.acceptedAt || null,
+          completedAt: jobData.assignment.completedAt || null,
+          estimatedArrivalTime: jobData.assignment.estimatedArrivalTime || null,
+        };
+      }
+
+      if (jobData.contractor) {
+        job.contractor = {
+          id: jobData.contractor.id,
+          name: jobData.contractor.name,
+          rating: jobData.contractor.averageRating || null,
+          reviewCount: jobData.contractor.reviewCount || 0,
+          location: "",
+          tradeType: (jobData.jobType as any) || "Other",
+          isActive: jobData.contractor.isActive || true,
+          phoneNumber: jobData.contractor.phoneNumber,
+          averageRating: jobData.contractor.averageRating,
+        };
+      }
+
+      return job;
     } catch (error) {
       throw this.handleError(error);
     }
