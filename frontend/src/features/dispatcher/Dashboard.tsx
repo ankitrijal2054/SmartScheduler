@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuthContext";
 import { useJobs } from "@/hooks/useJobs";
 import { Job } from "@/types/Job";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { JobList } from "./JobList";
 import { RecommendationsModal } from "./RecommendationsModal";
 import { ContractorListPanel } from "./ContractorListPanel";
@@ -69,22 +70,10 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Dispatcher Dashboard
-              </h1>
-              {user?.name && (
-                <p className="mt-1 text-sm text-gray-600">
-                  Welcome, {user.name}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        title="Dispatcher Dashboard"
+        subtitle={user?.email ? `Welcome, ${user.email}` : undefined}
+      />
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

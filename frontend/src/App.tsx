@@ -10,6 +10,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -17,6 +18,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SignupPage } from "@/features/auth/SignupPage";
 import { Dashboard } from "@/features/dispatcher/Dashboard";
+import { CustomerDashboard } from "@/features/customer/CustomerDashboard";
 import { JobSubmissionPage } from "@/features/customer/JobSubmissionPage";
 import { JobTrackingPage } from "@/features/customer/JobTracking/JobTrackingPage";
 import { contractorRoutes } from "@/features/contractor/ContractorRoutes";
@@ -28,6 +30,7 @@ import { useAuth } from "@/hooks/useAuthContext";
 const RootRoute: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Use useEffect to handle navigation to prevent infinite loops
   React.useEffect(() => {
@@ -36,26 +39,35 @@ const RootRoute: React.FC = () => {
     }
 
     if (!isAuthenticated || !user) {
-      navigate("/login", { replace: true });
+      // Only navigate if not already on login page
+      if (location.pathname !== "/login") {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
-    // Redirect to role-specific dashboard
+    // Determine target route based on role
+    let targetRoute = "/login";
     switch (user.role) {
       case "Dispatcher":
-        navigate("/dispatcher/dashboard", { replace: true });
+        targetRoute = "/dispatcher/dashboard";
         break;
       case "Customer":
-        navigate("/customer/submit-job", { replace: true });
+        targetRoute = "/customer/dashboard";
         break;
       case "Contractor":
-        navigate("/contractor/assignments", { replace: true });
+        targetRoute = "/contractor/dashboard";
         break;
       default:
-        navigate("/login", { replace: true });
+        targetRoute = "/login";
         break;
     }
-  }, [isAuthenticated, isLoading, user, navigate]);
+
+    // Only navigate if not already on the target route
+    if (location.pathname !== targetRoute) {
+      navigate(targetRoute, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, user?.role, navigate, location.pathname]);
 
   // Show loading state while redirecting
   return (
@@ -109,6 +121,14 @@ function App() {
             />
 
             {/* Protected Routes - Customer */}
+            <Route
+              path="/customer/dashboard"
+              element={
+                <ProtectedRoute requiredRole="Customer">
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/customer/submit-job"
               element={
