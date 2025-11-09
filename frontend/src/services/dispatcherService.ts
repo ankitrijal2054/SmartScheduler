@@ -9,6 +9,8 @@ import { PaginatedJobsResponse, JobsQueryParams } from "@/types/Job";
 import {
   RecommendationRequest,
   RecommendationResponse,
+  RecommendedContractor,
+  TimeSlot,
   Contractor,
   PaginatedContractorsResponse,
   ContractorHistory,
@@ -96,19 +98,74 @@ class DispatcherService {
     cancelToken?: CancelToken
   ): Promise<RecommendationResponse> {
     try {
-      const response = await this.axiosInstance.post<RecommendationResponse>(
-        "/api/v1/recommendations",
-        request,
-        {
-          timeout: 5000, // 5 second timeout for recommendations API
-          cancelToken,
-        }
-      );
-      return response.data;
+      // Backend response structure
+      interface BackendRecommendationDto {
+        contractorId: number;
+        name: string;
+        score: number;
+        rating: number | null;
+        reviewCount: number;
+        distance: number;
+        travelTime: number;
+        availableTimeSlots: string[]; // ISO 8601 datetime strings
+      }
+
+      interface BackendRecommendationResponse {
+        recommendations: BackendRecommendationDto[];
+        message: string;
+      }
+
+      const response =
+        await this.axiosInstance.get<BackendRecommendationResponse>(
+          "/api/v1/recommendations",
+          {
+            params: {
+              jobId: request.jobId,
+              contractorListOnly: request.contractor_list_only ?? false,
+            },
+            timeout: 5000, // 5 second timeout for recommendations API
+            cancelToken,
+          }
+        );
+
+      // Map backend response to frontend format
+      const mappedRecommendations: RecommendedContractor[] =
+        response.data.recommendations.map((rec, index) => {
+          // Convert DateTime strings to TimeSlot objects (1-hour windows)
+          const timeSlots: TimeSlot[] = rec.availableTimeSlots.map((slot) => {
+            const startTime = new Date(slot);
+            const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
+            return {
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString(),
+            };
+          });
+
+          return {
+            contractorId: rec.contractorId.toString(),
+            name: rec.name,
+            rank: index + 1, // Rank is 1-based based on position in array
+            score: rec.score,
+            avgRating: rec.rating,
+            reviewCount: rec.reviewCount,
+            distance: rec.distance,
+            travelTime: rec.travelTime,
+            tradeType: request.jobType, // Use jobType from request since backend doesn't provide it
+            availableTimeSlots: timeSlots,
+          };
+        });
+
+      return {
+        data: mappedRecommendations,
+        metadata: {
+          totalAvailable: mappedRecommendations.length,
+          requestTime: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log("Recommendations request cancelled");
-        throw new Error("Recommendations request cancelled");
+        // Silently handle cancelled requests - they're expected when component unmounts or new request is initiated
+        throw error; // Re-throw the cancel error so the hook can handle it
       }
       throw this.handleError(error);
     }

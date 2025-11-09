@@ -119,21 +119,26 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
 
   // Fetch recommendations when modal opens
   useEffect(() => {
-    if (isOpen) {
-      const request: RecommendationRequest = {
-        jobId,
-        jobType: jobType as any, // Already validated from Job type
-        location,
-        desiredDateTime,
-        contractor_list_only: contractorListOnly,
-      };
-      fetchRecommendations(request);
+    if (!isOpen) {
+      // Cleanup when modal closes
+      cleanup();
+      return;
     }
 
-    // Cleanup on unmount or when modal closes
+    const request: RecommendationRequest = {
+      jobId,
+      jobType: jobType as any, // Already validated from Job type
+      location,
+      desiredDateTime,
+      contractor_list_only: contractorListOnly,
+    };
+    fetchRecommendations(request);
+
+    // Cleanup on unmount
     return () => {
       cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isOpen,
     jobId,
@@ -141,8 +146,7 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     location,
     desiredDateTime,
     contractorListOnly,
-    fetchRecommendations,
-    cleanup,
+    // Note: fetchRecommendations and cleanup are stable callbacks from useRecommendations hook
   ]);
 
   // Close modal on Escape key
