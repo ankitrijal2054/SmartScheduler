@@ -7,17 +7,21 @@ import React from "react";
 import { format } from "date-fns";
 import { Job } from "@/types/Job";
 import { JobStatusBadge } from "@/components/shared/JobStatusBadge";
+import { ReassignmentHistoryBadge } from "@/components/shared/ReassignmentHistoryBadge";
+import { ReassignmentFlow } from "./ReassignmentFlow";
 
 interface JobCardProps {
   job: Job;
   onClick?: (job: Job) => void;
   onGetRecommendations?: (job: Job) => void;
+  onReassignmentSuccess?: () => void;
 }
 
 export const JobCard: React.FC<JobCardProps> = ({
   job,
   onClick,
   onGetRecommendations,
+  onReassignmentSuccess,
 }) => {
   const handleClick = () => {
     onClick?.(job);
@@ -48,9 +52,14 @@ export const JobCard: React.FC<JobCardProps> = ({
           <p className="text-xs font-semibold uppercase text-gray-500">
             Job ID
           </p>
-          <p className="font-mono text-sm text-gray-900">
-            {job.id.slice(0, 8)}...
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="font-mono text-sm text-gray-900">
+              {job.id.slice(0, 8)}...
+            </p>
+            <ReassignmentHistoryBadge
+              reassignmentCount={job.reassignmentCount}
+            />
+          </div>
           <p className="mt-2 text-xs font-semibold uppercase text-gray-500">
             Customer
           </p>
@@ -105,6 +114,9 @@ export const JobCard: React.FC<JobCardProps> = ({
             >
               Get Recommendations
             </button>
+          )}
+          {job.status === "Assigned" && (
+            <ReassignmentFlow job={job} onSuccess={onReassignmentSuccess} />
           )}
         </div>
       </div>

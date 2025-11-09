@@ -15,6 +15,10 @@ import {
   AssignmentResponse,
   AssignmentErrorCode,
 } from "@/types/Assignment";
+import {
+  ReassignmentRequest,
+  ReassignmentResponse,
+} from "@/types/Reassignment";
 
 class DispatcherService {
   private axiosInstance: AxiosInstance;
@@ -141,6 +145,35 @@ class DispatcherService {
   }
 
   /**
+   * Reassign a job to a different contractor (dispatcher action)
+   * @param jobId Job identifier
+   * @param request Reassignment request with newContractorId and optional reason
+   * @param cancelToken Optional axios cancel token for cleanup
+   * @returns Reassignment response with reassignment data
+   */
+  async reassignJob(
+    jobId: string,
+    request: ReassignmentRequest,
+    cancelToken?: CancelToken
+  ): Promise<ReassignmentResponse> {
+    try {
+      const response = await this.axiosInstance.put<{
+        data: ReassignmentResponse;
+      }>(`/api/v1/dispatcher/jobs/${jobId}/reassign`, request, {
+        timeout: 5000, // 5 second timeout for reassignment API
+        cancelToken,
+      });
+      return response.data.data;
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log("Reassignment request cancelled");
+        throw new Error("Reassignment request cancelled");
+      }
+      throw this.handleReassignmentError(error);
+    }
+  }
+
+  /**
    * Handle and normalize assignment API errors
    * Maps HTTP status codes to user-friendly error messages
    */
@@ -181,6 +214,62 @@ class DispatcherService {
           return new Error("Contractor no longer available; please try again");
         case 500:
           return new Error("Server error: Unable to complete assignment");
+        default:
+          return new Error(
+            error.response?.data?.error?.message || error.message
+          );
+      }
+    }
+    return error instanceof Error ? error : new Error("Unknown error occurred");
+  }
+
+  /**
+   * Handle and normalize reassignment API errors
+   * Maps HTTP status codes to user-friendly error messages
+   */
+  private handleReassignmentError(error: unknown): Error {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorCode = error.response?.data?.error?.code;
+
+      // Map specific error codes to messages
+      switch (errorCode) {
+        case "JOB_NOT_ASSIGNED":
+          return new Error(
+            "This job is not currently assigned for reassignment"
+          );
+        case "CONTRACTOR_NO_LONGER_AVAILABLE":
+          return new Error(
+            "New contractor no longer available; please try again"
+          );
+        case "CONTRACTOR_ALREADY_ASSIGNED":
+          return new Error(
+            "Selected contractor is already assigned to this job"
+          );
+        case "INVALID_JOB_ID":
+        case "JOB_NOT_FOUND":
+          return new Error("Job not found");
+        case "INVALID_CONTRACTOR_ID":
+        case "CONTRACTOR_NOT_FOUND":
+          return new Error("Contractor not found");
+        default:
+          break;
+      }
+
+      // Map HTTP status codes
+      switch (status) {
+        case 400:
+          return new Error("Invalid request data");
+        case 401:
+          return new Error("Unauthorized: Invalid or expired session");
+        case 403:
+          return new Error("Forbidden: Only dispatchers can reassign jobs");
+        case 404:
+          return new Error("Job or contractor not found");
+        case 409:
+          return new Error("Contractor no longer available; please try again");
+        case 500:
+          return new Error("Server error: Unable to complete reassignment");
         default:
           return new Error(
             error.response?.data?.error?.message || error.message

@@ -7,6 +7,7 @@ import React, { useEffect } from "react";
 import { format } from "date-fns";
 import { RecommendedContractor } from "@/types/Contractor";
 import { Job } from "@/types/Job";
+import { ReassignmentMode } from "@/types/Reassignment";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 interface AssignmentConfirmationDialogProps {
@@ -18,6 +19,8 @@ interface AssignmentConfirmationDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   onRetry: () => void;
+  mode?: ReassignmentMode; // "assign" (default) or "reassign"
+  currentContractorName?: string | null; // For reassignment mode
 }
 
 /**
@@ -54,7 +57,10 @@ export const AssignmentConfirmationDialog: React.FC<
   onConfirm,
   onCancel,
   onRetry,
+  mode = "assign",
+  currentContractorName,
 }) => {
+  const isReassignmentMode = mode === "reassign";
   // Close dialog on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -94,7 +100,9 @@ export const AssignmentConfirmationDialog: React.FC<
               id="assignment-dialog-title"
               className="text-lg font-bold text-gray-900"
             >
-              Confirm Assignment
+              {isReassignmentMode
+                ? "Confirm Reassignment"
+                : "Confirm Assignment"}
             </h2>
           </div>
 
@@ -117,9 +125,22 @@ export const AssignmentConfirmationDialog: React.FC<
                   id="assignment-dialog-desc"
                   className="text-sm text-gray-700"
                 >
-                  Assign{" "}
-                  <span className="font-semibold">{contractor.name}</span> to
-                  this job?
+                  {isReassignmentMode ? (
+                    <>
+                      Reassign from{" "}
+                      <span className="font-semibold">
+                        {currentContractorName}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-semibold">{contractor.name}</span>?
+                    </>
+                  ) : (
+                    <>
+                      Assign{" "}
+                      <span className="font-semibold">{contractor.name}</span>{" "}
+                      to this job?
+                    </>
+                  )}
                 </p>
 
                 {/* Contractor Details */}
@@ -206,10 +227,18 @@ export const AssignmentConfirmationDialog: React.FC<
                     className="flex-1 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     disabled={isAssigning}
                     type="button"
-                    aria-label="Confirm assignment"
+                    aria-label={
+                      isReassignmentMode
+                        ? "Confirm reassignment"
+                        : "Confirm assignment"
+                    }
                   >
                     {isAssigning && <LoadingSpinner />}
-                    {isAssigning ? "Assigning..." : "Confirm"}
+                    {isAssigning
+                      ? isReassignmentMode
+                        ? "Reassigning..."
+                        : "Assigning..."
+                      : "Confirm"}
                   </button>
                 </>
               )}

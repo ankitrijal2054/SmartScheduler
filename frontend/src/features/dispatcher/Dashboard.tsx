@@ -85,6 +85,7 @@ export const Dashboard: React.FC = () => {
             onJobClick={handleJobClick}
             onGetRecommendations={handleGetRecommendations}
             onPageChange={setPage}
+            onReassignmentSuccess={handleAssignmentSuccess}
           />
         </div>
 

@@ -18,6 +18,7 @@ interface JobListProps {
   onJobClick?: (job: Job) => void;
   onGetRecommendations?: (job: Job) => void;
   onPageChange?: (page: number) => void;
+  onReassignmentSuccess?: () => void;
 }
 
 export const JobList: React.FC<JobListProps> = ({
@@ -28,6 +29,7 @@ export const JobList: React.FC<JobListProps> = ({
   onJobClick,
   onGetRecommendations,
   onPageChange,
+  onReassignmentSuccess,
 }) => {
   if (loading) {
     return <LoadingSpinner />;
@@ -74,6 +76,7 @@ export const JobList: React.FC<JobListProps> = ({
             job={job}
             onClick={onJobClick}
             onGetRecommendations={onGetRecommendations}
+            onReassignmentSuccess={onReassignmentSuccess}
           />
         ))}
       </div>

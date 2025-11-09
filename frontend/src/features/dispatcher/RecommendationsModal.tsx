@@ -10,8 +10,10 @@ import {
   SortField,
 } from "@/types/Contractor";
 import { Job } from "@/types/Job";
+import { ReassignmentMode } from "@/types/Reassignment";
 import { useRecommendations } from "@/hooks/useRecommendations";
 import { useJobAssignment } from "@/hooks/useJobAssignment";
+import { useJobReassignment } from "@/hooks/useJobReassignment";
 import { useToast, ToastContainer } from "@/components/shared/Toast";
 import { ContractorRecommendationCard } from "./ContractorRecommendationCard";
 import { AssignmentConfirmationDialog } from "./AssignmentConfirmationDialog";
@@ -25,8 +27,12 @@ interface RecommendationsModalProps {
   desiredDateTime: string;
   contractorListOnly?: boolean;
   job?: Job | null;
+  mode?: ReassignmentMode; // "assign" (default) or "reassign"
+  currentContractorId?: string; // For reassignment mode: current assigned contractor
+  currentContractorName?: string | null; // For reassignment mode: current contractor name
   onClose: () => void;
   onAssignmentSuccess?: () => void;
+  onContractorSelect?: (contractorId: string, contractorName: string) => void;
 }
 
 /**
@@ -58,8 +64,12 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
   desiredDateTime,
   contractorListOnly = false,
   job = null,
+  mode = "assign", // default to assignment mode
+  currentContractorId,
+  currentContractorName,
   onClose,
   onAssignmentSuccess,
+  onContractorSelect,
 }) => {
   const {
     recommendations,
@@ -82,11 +92,23 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
   } = useJobAssignment();
 
   const {
+    isReassigning,
+    error: reassignmentError,
+    successMessage: reassignmentSuccess,
+    reassignJob,
+    reset: resetReassignment,
+    retry: retryReassignment,
+  } = useJobReassignment();
+
+  const {
     toasts,
     removeToast,
     success: showSuccess,
     error: showError,
   } = useToast();
+
+  // Determine if we're in reassignment mode
+  const isReassignmentMode = mode === "reassign";
 
   // Confirmation dialog state
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -147,6 +169,10 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
   // Handle assign button click
   const handleAssignClick = (contractor: RecommendedContractor) => {
     setSelectedContractor(contractor);
+    // Notify parent component about contractor selection if in reassignment mode
+    if (isReassignmentMode) {
+      onContractorSelect?.(contractor.contractorId, contractor.name);
+    }
     setConfirmationOpen(true);
   };
 
@@ -155,49 +181,79 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
     setConfirmationOpen(false);
     setSelectedContractor(null);
     resetAssignment();
+    resetReassignment();
   };
 
   // Handle assignment confirmation
   const handleAssignmentConfirm = async () => {
     if (selectedContractor && job) {
-      await assignJob(jobId, selectedContractor.contractorId);
+      if (isReassignmentMode) {
+        // Reassignment mode: call reassignJob hook
+        await reassignJob(jobId, selectedContractor.contractorId);
+      } else {
+        // Assignment mode: call assignJob hook
+        await assignJob(jobId, selectedContractor.contractorId);
+      }
     }
   };
 
-  // Show toast for assignment success
+  // Show toast for assignment/reassignment success
   useEffect(() => {
     if (successMessage && selectedContractor) {
-      showSuccess(`Job assigned to ${selectedContractor.name}`);
+      const action = isReassignmentMode ? "reassigned to" : "assigned to";
+      showSuccess(`Job ${action} ${selectedContractor.name}`);
     }
-  }, [successMessage, selectedContractor, showSuccess]);
+    if (reassignmentSuccess && selectedContractor) {
+      const action = isReassignmentMode ? "reassigned to" : "assigned to";
+      showSuccess(`Job ${action} ${selectedContractor.name}`);
+    }
+  }, [
+    successMessage,
+    reassignmentSuccess,
+    selectedContractor,
+    showSuccess,
+    isReassignmentMode,
+  ]);
 
-  // Show toast for assignment error
+  // Show toast for assignment/reassignment error
   useEffect(() => {
-    if (assignmentError && selectedContractor) {
+    if (assignmentError && selectedContractor && !isReassignmentMode) {
       showError(assignmentError);
     }
-  }, [assignmentError, selectedContractor, showError]);
+    if (reassignmentError && selectedContractor && isReassignmentMode) {
+      showError(reassignmentError);
+    }
+  }, [
+    assignmentError,
+    reassignmentError,
+    selectedContractor,
+    showError,
+    isReassignmentMode,
+  ]);
 
-  // Handle assignment success
+  // Handle assignment/reassignment success
   useEffect(() => {
-    if (
-      !isAssigning &&
-      !assignmentError &&
-      selectedContractor &&
-      successMessage
-    ) {
-      // Assignment was successful
+    const isLoading = isReassignmentMode ? isReassigning : isAssigning;
+    const hasError = isReassignmentMode ? reassignmentError : assignmentError;
+    const message = isReassignmentMode ? reassignmentSuccess : successMessage;
+
+    if (!isLoading && !hasError && selectedContractor && message) {
+      // Assignment/Reassignment was successful
       handleConfirmationClose();
       onClose(); // Close recommendations modal
       onAssignmentSuccess?.(); // Notify parent to refresh job list
     }
   }, [
+    isReassigning,
     isAssigning,
+    reassignmentError,
     assignmentError,
     selectedContractor,
+    reassignmentSuccess,
     successMessage,
     onClose,
     onAssignmentSuccess,
+    isReassignmentMode,
   ]);
 
   if (!isOpen) return null;
@@ -235,13 +291,19 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
                   id="recommendations-title"
                   className="text-xl font-bold text-gray-900"
                 >
-                  Contractor Recommendations
+                  {isReassignmentMode
+                    ? "Select Replacement Contractor"
+                    : "Contractor Recommendations"}
                 </h2>
                 <p
                   id="recommendations-desc"
                   className="mt-1 text-sm text-gray-600"
                 >
-                  Top recommended contractors for this job
+                  {isReassignmentMode
+                    ? currentContractorName
+                      ? `Current contractor: ${currentContractorName}`
+                      : "Select a new contractor for reassignment"
+                    : "Top recommended contractors for this job"}
                 </p>
               </div>
 
@@ -335,18 +397,23 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
             {/* Recommendations List */}
             {recommendations.length > 0 && !loading && (
               <div className="space-y-4">
-                {recommendations.map((contractor) => (
-                  <ContractorRecommendationCard
-                    key={contractor.contractorId}
-                    contractor={contractor}
-                    onAssign={handleAssignClick}
-                    isAssigning={
-                      isAssigning &&
-                      selectedContractor?.contractorId ===
-                        contractor.contractorId
-                    }
-                  />
-                ))}
+                {recommendations.map((contractor) => {
+                  const isCurrentlyProcessing = isReassignmentMode
+                    ? isReassigning
+                    : isAssigning;
+                  return (
+                    <ContractorRecommendationCard
+                      key={contractor.contractorId}
+                      contractor={contractor}
+                      onAssign={handleAssignClick}
+                      isAssigning={
+                        isCurrentlyProcessing &&
+                        selectedContractor?.contractorId ===
+                          contractor.contractorId
+                      }
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -358,11 +425,13 @@ export const RecommendationsModal: React.FC<RecommendationsModalProps> = ({
         isOpen={confirmationOpen}
         contractor={selectedContractor}
         job={job}
-        isAssigning={isAssigning}
-        error={assignmentError}
+        isAssigning={isReassignmentMode ? isReassigning : isAssigning}
+        error={isReassignmentMode ? reassignmentError : assignmentError}
         onConfirm={handleAssignmentConfirm}
         onCancel={handleConfirmationClose}
-        onRetry={retryAssignment}
+        onRetry={isReassignmentMode ? retryReassignment : retryAssignment}
+        mode={mode}
+        currentContractorName={currentContractorName}
       />
 
       {/* Toast Container */}

@@ -20,6 +20,7 @@ export interface Job {
   assignedContractorRating?: number;
   createdAt: string;
   updatedAt: string;
+  reassignmentCount?: number; // Optional: track number of times job was reassigned
 }
 
 export interface JobResponse {
@@ -36,6 +37,7 @@ export interface JobResponse {
   assignedContractorRating?: number;
   createdAt: string;
   updatedAt: string;
+  reassignmentCount?: number; // Optional: track number of times job was reassigned
 }
 
 export interface PaginationMeta {
