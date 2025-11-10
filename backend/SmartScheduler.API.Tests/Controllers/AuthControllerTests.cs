@@ -11,6 +11,7 @@ using SmartScheduler.Application.Services;
 using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Infrastructure.Persistence;
+using SmartScheduler.Infrastructure.Services;
 
 namespace SmartScheduler.API.Tests.Controllers;
 
@@ -21,6 +22,7 @@ public class AuthControllerTests
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly Mock<ILogger<AuthController>> _loggerMock;
+    private readonly Mock<IGeocodingService> _geocodingServiceMock;
     private readonly User _testUser;
 
     public AuthControllerTests()
@@ -47,12 +49,14 @@ public class AuthControllerTests
         _jwtTokenService = new JwtTokenService(configuration);
         _passwordHashingService = new PasswordHashingService();
         _loggerMock = new Mock<ILogger<AuthController>>();
+        _geocodingServiceMock = new Mock<IGeocodingService>();
 
         _controller = new AuthController(
             _jwtTokenService,
             _passwordHashingService,
             _dbContext,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _geocodingServiceMock.Object);
 
         // Initialize controller context with HttpContext
         var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();

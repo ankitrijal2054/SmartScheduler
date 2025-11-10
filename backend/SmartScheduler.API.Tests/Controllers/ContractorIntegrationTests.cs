@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FluentAssertions;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ public class ContractorIntegrationTests
     private readonly ApplicationDbContext _dbContext;
     private readonly Mock<ILogger<ContractorsController>> _loggerMock;
     private readonly Mock<IGeocodingService> _geocodingServiceMock;
+    private readonly Mock<IMediator> _mediatorMock;
 
     public ContractorIntegrationTests()
     {
@@ -62,7 +64,8 @@ public class ContractorIntegrationTests
         _contractorService = new ContractorService(_repository, _geocodingServiceMock.Object, serviceLoggerMock.Object);
         
         _loggerMock = new Mock<ILogger<ContractorsController>>();
-        _controller = new ContractorsController(_contractorService, _loggerMock.Object);
+        _mediatorMock = new Mock<IMediator>();
+        _controller = new ContractorsController(_contractorService, _repository, _mediatorMock.Object, _loggerMock.Object);
     }
 
     #region Helper Methods

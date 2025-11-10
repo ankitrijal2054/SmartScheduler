@@ -6,7 +6,7 @@
 import { useEffect, useState, useRef } from "react";
 import { dispatcherService } from "@/services/dispatcherService";
 import { ContractorHistory } from "@/types/Contractor";
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 
 export interface UseContractorHistoryState {
   data: ContractorHistory | null;
@@ -31,7 +31,7 @@ export const useContractorHistory = (
   const [data, setData] = useState<ContractorHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const cancelTokenRef = useRef<axios.CancelTokenSource | null>(null);
+  const cancelTokenRef = useRef<CancelTokenSource | null>(null);
 
   useEffect(() => {
     // Don't fetch if disabled or no contractorId

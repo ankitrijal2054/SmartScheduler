@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 import {
   Job,
   JobsQueryParams,
@@ -45,7 +45,7 @@ export const useJobs = (): UseJobsReturn => {
     sortOrder: "asc",
   });
 
-  const cancelTokenRef = useRef<axios.CancelTokenSource | null>(null);
+  const cancelTokenRef = useRef<CancelTokenSource | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );

@@ -11,6 +11,7 @@ using SmartScheduler.Application.Commands;
 using SmartScheduler.Application.DTOs;
 using SmartScheduler.Application.Queries;
 using SmartScheduler.Application.Services;
+using SmartScheduler.Application.Repositories;
 using SmartScheduler.Domain.Exceptions;
 
 namespace SmartScheduler.API.Tests.Controllers;
@@ -24,17 +25,20 @@ public class DispatcherControllerTests
     private readonly Mock<IMediator> _mediatorMock;
     private readonly Mock<IAuthorizationService> _authorizationServiceMock;
     private readonly Mock<ILogger<DispatcherController>> _loggerMock;
+    private readonly Mock<IContractorService> _contractorServiceMock;
 
     public DispatcherControllerTests()
     {
         _mediatorMock = new Mock<IMediator>();
         _authorizationServiceMock = new Mock<IAuthorizationService>();
         _loggerMock = new Mock<ILogger<DispatcherController>>();
+        _contractorServiceMock = new Mock<IContractorService>();
 
         _controller = new DispatcherController(
             _mediatorMock.Object,
             _loggerMock.Object,
-            _authorizationServiceMock.Object
+            _authorizationServiceMock.Object,
+            _contractorServiceMock.Object
         );
     }
 

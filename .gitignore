@@ -109,3 +109,5 @@ LOCAL-SETUP.md
 setup-local-db.sh
 .gitignore
 setup-local-env.sh
+fix-migration.sh
+backend/fix-migration-history.sh

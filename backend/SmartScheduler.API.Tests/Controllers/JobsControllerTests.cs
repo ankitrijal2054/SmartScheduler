@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ using SmartScheduler.Domain.Entities;
 using SmartScheduler.Domain.Enums;
 using SmartScheduler.Domain.Exceptions;
 using SmartScheduler.Infrastructure.Persistence;
+using SmartScheduler.Infrastructure.Hubs;
 
 namespace SmartScheduler.API.Tests.Controllers;
 
@@ -25,6 +27,7 @@ public class JobsControllerTests
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly Mock<ILogger<JobsController>> _loggerMock;
+    private readonly Mock<IHubContext<NotificationHub>> _hubContextMock;
 
     public JobsControllerTests()
     {
@@ -51,8 +54,9 @@ public class JobsControllerTests
         _passwordHashingService = new PasswordHashingService();
         _authorizationService = new AuthorizationService();
         _loggerMock = new Mock<ILogger<JobsController>>();
+        _hubContextMock = new Mock<IHubContext<NotificationHub>>();
 
-        _controller = new JobsController(_dbContext, _loggerMock.Object, _authorizationService);
+        _controller = new JobsController(_dbContext, _loggerMock.Object, _authorizationService, _hubContextMock.Object);
     }
 
     private void SetupControllerUser(string role, int userId)

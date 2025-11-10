@@ -41,7 +41,8 @@ builder.Services.AddCors(options =>
             "http://localhost:3000",      // Local development
             "http://localhost:5173",      // Vite default
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173"
+            "http://127.0.0.1:5173",
+            "https://d19dnqt5vuc0fq.cloudfront.net"  // Production CloudFront
         )
         .AllowAnyMethod()
         .AllowAnyHeader()
@@ -154,6 +155,25 @@ try
         Log.Information("Seeding database with initial data...");
         DatabaseSeeder.Seed(context);
         Log.Information("Database seeding completed successfully");
+    }
+}
+catch (Npgsql.PostgresException pgEx) when (pgEx.SqlState == "42P07" && pgEx.MessageText.Contains("already exists"))
+{
+    // Handle case where tables exist but migration history is out of sync
+    Log.Error(pgEx, "Migration failed: Tables already exist but migration history is out of sync. " +
+        "This usually happens when the database was created manually or migration history was lost. " +
+        "To fix: Run the fix-migration-history.sql script against your database, or manually insert " +
+        "the migration record into __EFMigrationsHistory table.");
+    
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "Database migration failed: Tables exist but migration history is missing. " +
+            "Please run fix-migration-history.sql script to resolve this issue.", pgEx);
+    }
+    else
+    {
+        Log.Warning("Continuing in development mode despite migration error. Fix migration history before deploying to production.");
     }
 }
 catch (Exception ex)
